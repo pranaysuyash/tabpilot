@@ -24,13 +24,8 @@ struct SnapshotsView: View {
             if viewModel.canUndo {
                 GroupBox("Recent Close (Undo Available)") {
                     HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(viewModel.undoMessage)
-                                .font(.subheadline)
-                            Text("Expires in \(Int(viewModel.undoTimeRemaining))s")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
+                        Text(viewModel.undoMessage)
+                            .font(.subheadline)
                         Spacer()
                         Button {
                             Task { await viewModel.undoLastClose() }

@@ -91,8 +91,8 @@ struct ExportView: View {
         }
         .frame(width: 700, height: 500)
         .onAppear { generateContent() }
-        .onChange(of: selectedFormat) { _, _ in generateContent() }
-        .onChange(of: selectedDataType) { _, _ in generateContent() }
+        .onChange(of: selectedFormat) { _ in generateContent() }
+        .onChange(of: selectedDataType) { _ in generateContent() }
     }
     
     private func generateContent() {

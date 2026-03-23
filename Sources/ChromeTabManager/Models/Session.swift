@@ -47,7 +47,7 @@ struct SessionTab: Identifiable, Codable, Hashable {
     let windowId: Int
     let tabIndex: Int
     
-    init(from tab: TabInfo) {
+    init(tabInfo tab: TabInfo) {
         self.id = UUID()
         self.title = tab.title
         self.url = tab.url
@@ -84,7 +84,7 @@ class SessionStore: ObservableObject {
     // MARK: - CRUD
     
     func saveCurrentTabs(_ tabs: [TabInfo], name: String, notes: String = "") {
-        let sessionTabs = tabs.map { SessionTab(from: $0) }
+        let sessionTabs = tabs.map { SessionTab(tabInfo: $0) }
         let session = Session(name: name, tabs: sessionTabs, notes: notes)
         sessions.insert(session, at: 0)
         persist()

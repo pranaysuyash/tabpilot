@@ -4,6 +4,7 @@ set -euo pipefail
 TS="${1:-$(date +%Y%m%d-%H%M%S)}"
 BASE="Recovery/safety/$TS"
 mkdir -p "$BASE/repo" "$BASE/opencode"
+printf "%s\n" "$BASE" > Recovery/safety/LATEST
 
 # Repo metadata and patch snapshots
 git rev-parse HEAD > "$BASE/repo/head.sha"
@@ -27,6 +28,4 @@ if [[ -d "$OP" ]]; then
   cp "$OP/opencode.workspace.L1VzZXJzL3By.1h6txon.dat" "$BASE/opencode/opencode.workspace.L1VzZXJzL3By.1h6txon.dat" 2>/dev/null || true
   cp "$OP/opencode.workspace.-Users-prana.eqwgy8.dat" "$BASE/opencode/opencode.workspace.-Users-prana.eqwgy8.dat" 2>/dev/null || true
 fi
-
-printf "%s\n" "$BASE" > Recovery/safety/LATEST
 printf "Safety baseline created: %s\n" "$BASE"

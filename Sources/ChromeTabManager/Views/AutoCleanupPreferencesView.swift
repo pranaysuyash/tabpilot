@@ -4,17 +4,17 @@ struct AutoCleanupPreferencesView: View {
     @State private var isEnabled = false
     @State private var checkInterval: Double = 15
     @State private var rules: [CleanupRule] = []
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             Text("Auto-Cleanup Settings")
                 .font(.headline)
-            
+
             Toggle("Enable Auto-Cleanup", isOn: $isEnabled)
                 .onChange(of: isEnabled) { newValue in
                     AutoCleanupManager.shared.isEnabled = newValue
                 }
-            
+
             VStack(alignment: .leading, spacing: 8) {
                 Text("Check Interval: \(Int(checkInterval)) minutes")
                 Slider(value: $checkInterval, in: 5...60, step: 5)
@@ -22,13 +22,13 @@ struct AutoCleanupPreferencesView: View {
                         AutoCleanupManager.shared.checkInterval = newValue * 60
                     }
             }
-            
+
             Divider()
-            
+
             Text("Cleanup Rules")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-            
+
             if rules.isEmpty {
                 Text("No cleanup rules configured")
                     .foregroundStyle(.secondary)
@@ -45,9 +45,9 @@ struct AutoCleanupPreferencesView: View {
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
-                            
+
                             Spacer()
-                            
+
                             if rule.enabled {
                                 Image(systemName: "checkmark.circle.fill")
                                     .foregroundStyle(.green)
@@ -56,13 +56,13 @@ struct AutoCleanupPreferencesView: View {
                     }
                 }
             }
-            
+
             HStack {
                 Button("Add Rule") {
                 }
-                
+
                 Spacer()
-                
+
                 Button("Refresh") {
                     loadRules()
                 }
@@ -74,15 +74,13 @@ struct AutoCleanupPreferencesView: View {
             loadRules()
         }
     }
-    
+
     private func loadSettings() {
         isEnabled = AutoCleanupManager.shared.isEnabled
         checkInterval = AutoCleanupManager.shared.checkInterval / 60
     }
-    
+
     private func loadRules() {
         rules = CleanupRuleStore.shared.rules
-    }
-}rules = CleanupRuleStore.shared.loadRules()
     }
 }
