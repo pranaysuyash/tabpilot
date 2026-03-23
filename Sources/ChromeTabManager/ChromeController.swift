@@ -39,6 +39,7 @@ actor ChromeController {
             let result = try await runAppleScript(script, timeout: 5)
             return result.trimmingCharacters(in: .whitespacesAndNewlines) == "true"
         } catch {
+            SecureLogger.error("isChromeRunning failed: \(error.localizedDescription)")
             return false
         }
     }
@@ -99,7 +100,7 @@ actor ChromeController {
                 guard !trimmed.isEmpty else { continue }
                 
                 // Split on first 3 pipes only — title may contain pipe characters
-                var parts = trimmed.components(separatedBy: "|")
+                let parts = trimmed.components(separatedBy: "|")
                 guard parts.count >= 4,
                       let windowId = Int(parts[0].trimmingCharacters(in: .whitespacesAndNewlines)),
                       let tabIndex = Int(parts[1].trimmingCharacters(in: .whitespacesAndNewlines)) else {
@@ -217,6 +218,7 @@ actor ChromeController {
             let result = try await runAppleScript(script, timeout: 10)
             return result.trimmingCharacters(in: .whitespacesAndNewlines) == "opened"
         } catch {
+            SecureLogger.error("openTab failed for window \(windowId), url: \(url): \(error.localizedDescription)")
             return false
         }
     }
@@ -251,6 +253,7 @@ actor ChromeController {
             }
             return indices
         } catch {
+            SecureLogger.error("getWindowTabIndices failed for window \(windowId): \(error.localizedDescription)")
             return []
         }
     }
@@ -296,6 +299,7 @@ actor ChromeController {
             let result = try await runAppleScript(script, timeout: 10)
             return result.trimmingCharacters(in: .whitespacesAndNewlines) == "closed"
         } catch {
+            SecureLogger.error("closeTabByURL failed for window \(windowId), url: \(url): \(error.localizedDescription)")
             return false
         }
     }
@@ -343,9 +347,11 @@ actor ChromeController {
                     closed += 1
                 } else {
                     failed += 1
+                    SecureLogger.warning("closeTabsDeterministic: unexpected result at index \(index)")
                 }
             } catch {
                 failed += 1
+                SecureLogger.error("closeTabsDeterministic failed at index \(index): \(error.localizedDescription)")
             }
         }
         
@@ -422,6 +428,7 @@ actor ChromeController {
             }
             return nil
         } catch {
+            SecureLogger.error("findTabIndex failed for window \(windowId), url: \(url): \(error.localizedDescription)")
             return nil
         }
     }
@@ -440,6 +447,7 @@ actor ChromeController {
                     totalTabs: knownTabCount
                 ))
             } catch {
+                SecureLogger.warning("getInstances: getWindowCount failed: \(error.localizedDescription)")
                 instances.append(ChromeInstance(
                     name: "Google Chrome",
                     isRunning: true,

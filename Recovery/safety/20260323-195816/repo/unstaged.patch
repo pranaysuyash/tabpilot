@@ -1,0 +1,1631 @@
+diff --git a/Sources/ChromeTabManager/ContentView.swift b/Sources/ChromeTabManager/ContentView.swift
+index c400ec6..d78f14e 100644
+--- a/Sources/ChromeTabManager/ContentView.swift
++++ b/Sources/ChromeTabManager/ContentView.swift
+@@ -39,8 +39,8 @@ struct ContentView: View {
+                 ToastView(message: viewModel.toastMessage, isShowing: viewModel.showToast)
+                     .animation(.easeInOut(duration: 0.2), value: viewModel.showToast)
+                 
+-                // Undo bar (Pro only)
+-                if viewModel.licenseManager.isPro && viewModel.canUndo {
++                // Undo bar
++                if viewModel.licenseManager.isLicensed && viewModel.canUndo {
+                     VStack {
+                         Spacer()
+                         HStack {
+@@ -79,989 +79,6 @@ struct ContentView: View {
+     }
+ }
+ 
+-// MARK: - Toast View
+-
+-struct ToastView: View {
+-    let message: String?
+-    let isShowing: Bool
+-    
+-    var body: some View {
+-        VStack {
+-            Spacer()
+-            if isShowing, let message = message {
+-                HStack(spacing: 8) {
+-                    Image(systemName: "info.circle.fill")
+-                    Text(message)
+-                        .font(.subheadline)
+-                }
+-                .foregroundStyle(Color.primary)
+-                .padding(.horizontal, 16)
+-                .padding(.vertical, 12)
+-                .background(.ultraThinMaterial)
+-                .clipShape(RoundedRectangle(cornerRadius: 8))
+-                .shadow(radius: 4)
+-                .padding(.bottom, 20)
+-            }
+-        }
+-    }
+-}
+-
+-struct SidebarView: View {
+-    @ObservedObject var viewModel: TabManagerViewModel
+-    
+-    var body: some View {
+-        List {
+-            if let analysis = viewModel.userAnalysis {
+-                PersonaCard(analysis: analysis, viewModel: viewModel)
+-            } else if viewModel.isScanning {
+-                ScanningCard(viewModel: viewModel)
+-            } else {
+-                WelcomeCard()
+-            }
+-            
+-            if let analysis = viewModel.userAnalysis, analysis.persona != .light {
+-                if viewModel.config.showWindowBreakdown {
+-                    Section("Windows") {
+-                        ForEach(viewModel.windows) { window in
+-                            WindowRow(window: window)
+-                        }
+-                    }
+-                }
+-            }
+-        }
+-        .listStyle(.sidebar)
+-        .navigationTitle("Tab Manager")
+-    }
+-}
+-
+-struct PersonaCard: View {
+-    let analysis: UserAnalysis
+-    @ObservedObject var viewModel: TabManagerViewModel
+-    
+-    var body: some View {
+-        Section {
+-            VStack(alignment: .leading, spacing: 12) {
+-                HStack {
+-                    Text(analysis.icon)
+-                        .font(.system(size: 40))
+-                    VStack(alignment: .leading) {
+-                        Text(analysis.title)
+-                            .font(.headline)
+-                        Text(analysis.description)
+-                            .font(.caption)
+-                            .foregroundStyle(.secondary)
+-                            .lineLimit(2)
+-                    }
+-                }
+-                
+-                Divider()
+-                
+-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+-                    StatBadge(value: analysis.totalTabs, label: "Tabs", color: Color.blue)
+-                    StatBadge(value: analysis.windowCount, label: "Windows", color: .purple)
+-                    StatBadge(value: analysis.duplicateGroups, label: "Duplicates", color: .orange)
+-                    StatBadge(value: analysis.wastedTabs, label: "Wasted", color: .red)
+-                }
+-                
+-                // Scan telemetry
+-                if let telemetry = viewModel.scanStats {
+-                    Divider()
+-                    
+-                    HStack {
+-                        Text("Scan: \(String(format: "%.1f", telemetry.durationSeconds))s")
+-                            .font(.caption)
+-                            .foregroundStyle(.secondary)
+-                        
+-                        if telemetry.windowsFailed > 0 {
+-                            Text("• \(telemetry.windowsFailed) windows failed")
+-                                .font(.caption)
+-                                .foregroundStyle(.red)
+-                        }
+-                    }
+-                }
+-            }
+-            .padding()
+-            .background(Color(.controlBackgroundColor))
+-            .clipShape(RoundedRectangle(cornerRadius: 12))
+-        }
+-    }
+-}
+-
+-struct ScanningCard: View {
+-    @ObservedObject var viewModel: TabManagerViewModel
+-    
+-    var body: some View {
+-        Section("Scanning...") {
+-            VStack(alignment: .leading, spacing: 8) {
+-                ProgressView(value: viewModel.scanProgress)
+-                    .progressViewStyle(.linear)
+-                Text(viewModel.scanMessage)
+-                    .font(.caption)
+-                    .foregroundStyle(.secondary)
+-            }
+-            .padding()
+-        }
+-    }
+-}
+-
+-struct WelcomeCard: View {
+-    var body: some View {
+-        Section {
+-            VStack(alignment: .center, spacing: 12) {
+-                Text("Welcome!")
+-                    .font(.headline)
+-                Text("Click Scan to analyze your Chrome tabs")
+-                    .font(.caption)
+-                    .foregroundStyle(.secondary)
+-            }
+-            .frame(maxWidth: .infinity)
+-            .padding()
+-        }
+-    }
+-}
+-
+-struct MainContentView: View {
+-    @ObservedObject var viewModel: TabManagerViewModel
+-    
+-    var body: some View {
+-        Group {
+-            if viewModel.isScanning {
+-                ScanningView(viewModel: viewModel)
+-            } else if let analysis = viewModel.userAnalysis {
+-                switch analysis.persona {
+-                case .light:
+-                    LightUserView(viewModel: viewModel, analysis: analysis)
+-                case .superUser:
+-                    SuperUserView(viewModel: viewModel, analysis: analysis)
+-                default:
+-                    StandardUserView(viewModel: viewModel, analysis: analysis)
+-                }
+-            } else {
+-                EmptyStateView(viewModel: viewModel)
+-            }
+-        }
+-        .navigationTitle("Duplicates")
+-    }
+-}
+-
+-// MARK: - Persona-Specific Views
+-
+-struct LightUserView: View {
+-    @ObservedObject var viewModel: TabManagerViewModel
+-    let analysis: UserAnalysis
+-    
+-    var body: some View {
+-        ScrollView {
+-            VStack(spacing: 24) {
+-                // Big friendly stats
+-                HStack(spacing: 32) {
+-                    BigStat(value: analysis.totalTabs, label: "Tabs", color: .blue)
+-                    BigStat(value: analysis.duplicateGroups, label: "Duplicates", color: .orange)
+-                }
+-                
+-                if viewModel.hasDuplicates {
+-                    VStack(spacing: 16) {
+-                        Text("Cleaning duplicates will make Chrome faster!")
+-                            .font(.subheadline)
+-                            .foregroundStyle(.secondary)
+-                        
+-                        Button {
+-                            viewModel.requestCloseAllDuplicates(keepOldest: true)
+-                        } label: {
+-                            HStack {
+-                                Image(systemName: "wand.and.stars")
+-                                Text("Clean All Duplicates")
+-                                    .font(.headline)
+-                            }
+-                            .frame(maxWidth: 300)
+-                            .padding()
+-                        }
+-                        .buttonStyle(.borderedProminent)
+-                        .controlSize(.large)
+-                        .help("Review and close all duplicate tabs, keeping the first-seen tab for each URL")
+-                        
+-                        Text("We'll keep the first-seen tab and close the rest")
+-                            .font(.caption)
+-                            .foregroundStyle(.secondary)
+-                    }
+-                    
+-                    // Simple list of what's being cleaned
+-                    VStack(alignment: .leading, spacing: 12) {
+-                        Text("What we'll clean:")
+-                            .font(.headline)
+-                        
+-                        ForEach(viewModel.duplicateGroups.prefix(5)) { group in
+-                            SimpleDuplicateRow(group: group)
+-                        }
+-                        
+-                        if viewModel.duplicateGroups.count > 5 {
+-                            Text("... and \(viewModel.duplicateGroups.count - 5) more")
+-                                .font(.caption)
+-                                .foregroundStyle(.secondary)
+-                        }
+-                    }
+-                    .frame(maxWidth: 500, alignment: .leading)
+-                } else {
+-                    VStack(spacing: 16) {
+-                        Image(systemName: "checkmark.seal.fill")
+-                            .font(.system(size: 64))
+-                            .foregroundStyle(.green)
+-                        
+-                        Text("No duplicates found!")
+-                            .font(.title2.bold())
+-                        
+-                        Text("Your Chrome is already clean and organized.")
+-                            .foregroundStyle(.secondary)
+-                    }
+-                    .padding(.top, 40)
+-                }
+-            }
+-            .padding()
+-            .frame(maxWidth: .infinity)
+-        }
+-    }
+-}
+-
+-struct SuperUserView: View {
+-    @ObservedObject var viewModel: TabManagerViewModel
+-    let analysis: UserAnalysis
+-    
+-    // Focus state for the search field — Cmd+F triggers this via .focusFilter notification
+-    enum Field { case search }
+-    @FocusState private var focusedField: Field?
+-    
+-    var body: some View {
+-        ZStack {
+-            VStack(spacing: 0) {
+-                // Dense toolbar
+-                HStack(spacing: 16) {
+-                    if viewModel.config.showSearch {
+-                        TextField("Filter...", text: $viewModel.searchQuery)
+-                            .textFieldStyle(.roundedBorder)
+-                            .frame(width: 200)
+-                            .focused($focusedField, equals: .search)
+-                            .help("Filter duplicates by title, URL, or domain (Cmd+F)")
+-                    }
+-                    
+-                    // View mode picker
+-                    Picker("View", selection: $viewModel.viewMode) {
+-                        ForEach(TabManagerViewModel.DuplicateViewMode.allCases, id: \.self) { mode in
+-                            Label(mode.rawValue, systemImage: mode.icon)
+-                                .tag(mode)
+-                                .help(mode.description)
+-                        }
+-                    }
+-                    .pickerStyle(.segmented)
+-                    .frame(width: 400)
+-                    .help("Change how duplicate tabs are grouped and displayed")
+-                    
+-                    Spacer()
+-                    
+-                    HStack(spacing: 12) {
+-                        Text("\(viewModel.tabs.count) tabs")
+-                            .font(.caption)
+-                            .foregroundStyle(.secondary)
+-                        
+-                        Text("\(viewModel.duplicateGroups.count) groups")
+-                            .font(.caption)
+-                            .foregroundStyle(.secondary)
+-                            .help("Duplicate groups")
+-                        
+-                        Text("\(analysis.wastedTabs) extra")
+-                            .font(.caption)
+-                            .foregroundStyle(.secondary)
+-                            .help("Tabs beyond the first for each URL")
+-                        
+-                        // Protected domains indicator (Pro only)
+-                        if viewModel.licenseManager.isPro && !viewModel.protectedDomains.isEmpty {
+-                            Text("\(viewModel.protectedDomains.count) protected")
+-                                .font(.caption)
+-                                .foregroundStyle(.blue)
+-                                .help("Domains excluded from cleanup: \(viewModel.protectedDomains.joined(separator: ", "))")
+-                        }
+-                    }
+-                    
+-                    // Close Selected button (only if bulk actions enabled and items selected)
+-                    if viewModel.config.bulkActions && !viewModel.selectedTabIds.isEmpty {
+-                        Button {
+-                            viewModel.requestCloseSelected()
+-                        } label: {
+-                            Label("Close Selected (\(viewModel.selectedTabIds.count))", systemImage: "xmark.bin")
+-                        }
+-                        .buttonStyle(.bordered)
+-                        .tint(.red)
+-                        .help("Close the selected tabs. Pro users can undo for 30 seconds.")
+-                    }
+-                    
+-                    Button {
+-                        viewModel.requestCloseAllDuplicates(keepOldest: true)
+-                    } label: {
+-                        Label("Review Cleanup Plan", systemImage: "wand.and.stars")
+-                    }
+-                    .buttonStyle(.borderedProminent)
+-                    .help("Review which tabs will be closed before applying changes. Matching rules can be changed in Preferences (Cmd+,).")
+-                }
+-                .padding()
+-                .background(Color(.windowBackgroundColor))
+-                
+-                // Dense list
+-                List(viewModel.filteredDuplicates) { group in
+-                    SuperDuplicateRow(group: group, viewModel: viewModel)
+-                }
+-                .listStyle(.plain)
+-                .id(viewModel.viewMode) // Force refresh on mode change
+-            }
+-            
+-            // Review Plan overlay with scrim
+-            if viewModel.showReviewPlan {
+-                Color.black.opacity(0.3)
+-                    .ignoresSafeArea()
+-                    .onTapGesture {
+-                        viewModel.cancelReviewPlan()
+-                    }
+-                
+-                ReviewPlanView(viewModel: viewModel)
+-                    .frame(maxWidth: 800, maxHeight: 700)
+-                    .background(Color(.windowBackgroundColor))
+-                    .cornerRadius(12)
+-                    .shadow(radius: 20)
+-                    .padding()
+-            }
+-        }
+-        // Listen for Cmd+F notification to focus the search field
+-        .onReceive(NotificationCenter.default.publisher(for: .focusFilter)) { _ in
+-            guard viewModel.config.showSearch else { return }
+-            focusedField = .search
+-        }
+-    }
+-}
+-
+-struct StandardUserView: View {
+-    @ObservedObject var viewModel: TabManagerViewModel
+-    let analysis: UserAnalysis
+-    
+-    var body: some View {
+-        VStack(spacing: 0) {
+-            // Toolbar with view mode
+-            HStack {
+-                Picker("View", selection: $viewModel.viewMode) {
+-                    ForEach(TabManagerViewModel.DuplicateViewMode.allCases, id: \.self) { mode in
+-                        Label(mode.rawValue, systemImage: mode.icon)
+-                            .tag(mode)
+-                    }
+-                }
+-                .pickerStyle(.segmented)
+-                
+-                Spacer()
+-            }
+-            .padding()
+-            .background(Color(.windowBackgroundColor))
+-            
+-            List {
+-                if viewModel.hasDuplicates {
+-                    ForEach(viewModel.filteredDuplicates) { group in
+-                        DuplicateGroupSection(group: group, viewModel: viewModel)
+-                    }
+-                } else {
+-                    Section {
+-                        Text("No duplicates found!")
+-                            .foregroundStyle(.secondary)
+-                    }
+-                }
+-            }
+-            .listStyle(.plain)
+-            .id(viewModel.viewMode)
+-        }
+-    }
+-}
+-
+-// MARK: - Supporting Views
+-
+-struct BigStat: View {
+-    let value: Int
+-    let label: String
+-    let color: Color
+-    
+-    var body: some View {
+-        VStack(spacing: 4) {
+-            Text("\(value)")
+-                .font(.system(size: 48, weight: .bold, design: .rounded))
+-                .foregroundStyle(color)
+-            Text(label)
+-                .font(.subheadline)
+-                .foregroundStyle(.secondary)
+-        }
+-    }
+-}
+-
+-struct SimpleDuplicateRow: View {
+-    let group: DuplicateGroup
+-    
+-    var body: some View {
+-        HStack {
+-            VStack(alignment: .leading, spacing: 4) {
+-                Text(group.tabs.first?.title ?? "Unknown")
+-                    .font(.subheadline)
+-                    .lineLimit(1)
+-                Text(group.displayUrl)
+-                    .font(.caption)
+-                    .foregroundStyle(.secondary)
+-                    .lineLimit(1)
+-            }
+-            
+-            Spacer()
+-            
+-            Text("\(group.tabs.count) copies")
+-                .font(.caption.bold())
+-                .foregroundStyle(.white)
+-                .padding(.horizontal, 10)
+-                .padding(.vertical, 4)
+-                .background(Color.red)
+-                .clipShape(Capsule())
+-        }
+-        .padding(.vertical, 4)
+-    }
+-}
+-
+-struct SuperDuplicateRow: View {
+-    let group: DuplicateGroup
+-    @ObservedObject var viewModel: TabManagerViewModel
+-    
+-    var body: some View {
+-        HStack(spacing: 12) {
+-            VStack(alignment: .leading, spacing: 2) {
+-                Text(group.tabs.first?.title ?? "Unknown")
+-                    .font(.subheadline)
+-                    .lineLimit(1)
+-                Text(group.displayUrl)
+-                    .font(.caption2)
+-                    .foregroundStyle(.secondary)
+-                    .lineLimit(1)
+-            }
+-            
+-            Spacer()
+-            
+-            let windows = Set(group.tabs.map { $0.windowId }).sorted()
+-            Text("W\(windows.map(String.init).joined(separator: ","))")
+-                .font(.caption2)
+-                .foregroundStyle(.secondary)
+-            
+-            Text("\(group.tabs.count)")
+-                .font(.caption.bold())
+-                .foregroundStyle(.white)
+-                .padding(.horizontal, 8)
+-                .padding(.vertical, 2)
+-                .background(Color.red)
+-                .clipShape(Capsule())
+-            
+-            Button {
+-                viewModel.selectAllExceptOldest(in: group)
+-            } label: {
+-                Image(systemName: "1.circle.fill")
+-                    .foregroundStyle(.green)
+-            }
+-            .buttonStyle(.plain)
+-            .help("Keep first seen")
+-            
+-            Button {
+-                Task {
+-                    if let first = group.tabs.first {
+-                        await viewModel.activateTab(first)
+-                    }
+-                }
+-            } label: {
+-                Image(systemName: "eye")
+-                    .foregroundStyle(.secondary)
+-            }
+-            .buttonStyle(.plain)
+-            .help("Focus tab in Chrome")
+-        }
+-        .padding(.vertical, 6)
+-    }
+-}
+-
+-// Rest of views (ScanningView, EmptyStateView, DuplicateGroupSection, etc.) from previous version...
+-// Include them here or reference them
+-
+-struct ScanningView: View {
+-    @ObservedObject var viewModel: TabManagerViewModel
+-    
+-    var body: some View {
+-        VStack(spacing: 20) {
+-            ProgressView()
+-                .scaleEffect(2)
+-            Text("Scanning Chrome tabs...")
+-                .font(.headline)
+-            Text(viewModel.scanMessage)
+-                .font(.caption)
+-                .foregroundStyle(.secondary)
+-        }
+-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+-    }
+-}
+-
+-struct EmptyStateView: View {
+-    @ObservedObject var viewModel: TabManagerViewModel
+-    
+-    var body: some View {
+-        VStack(spacing: 20) {
+-            Image(systemName: "doc.text.magnifyingglass")
+-                .font(.system(size: 64))
+-                .foregroundStyle(.secondary)
+-            
+-            Text("Scan Your Chrome Tabs")
+-                .font(.title2.bold())
+-            
+-            Button("Scan Now") {
+-                Task { await viewModel.scan() }
+-            }
+-            .buttonStyle(.borderedProminent)
+-            .controlSize(.large)
+-        }
+-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+-    }
+-}
+-
+-struct DuplicateGroupSection: View {
+-    let group: DuplicateGroup
+-    @ObservedObject var viewModel: TabManagerViewModel
+-    
+-    var body: some View {
+-        Section {
+-            VStack(alignment: .leading, spacing: 8) {
+-                HStack {
+-                    VStack(alignment: .leading, spacing: 4) {
+-                        Text(group.tabs.first?.title.prefix(60) ?? "Untitled")
+-                            .font(.headline)
+-                            .lineLimit(1)
+-                        
+-                        Text(group.displayUrl.prefix(80))
+-                            .font(.caption)
+-                            .foregroundStyle(.secondary)
+-                            .lineLimit(1)
+-                    }
+-                    
+-                    Spacer()
+-                    
+-                    HStack(spacing: 8) {
+-                        Text("\(group.tabs.count) copies")
+-                            .font(.caption.bold())
+-                            .foregroundStyle(.white)
+-                            .padding(.horizontal, 10)
+-                            .padding(.vertical, 6)
+-                            .background(Color.red)
+-                            .clipShape(Capsule())
+-                    }
+-                }
+-                
+-                Divider()
+-                
+-                HStack(spacing: 12) {
+-                    ActionButton(title: "Keep First Seen", icon: "1.circle.fill", color: .green) {
+-                        viewModel.selectAllExceptOldest(in: group)
+-                    }
+-                    
+-                    ActionButton(title: "Keep Last Seen", icon: "star.circle.fill", color: .blue) {
+-                        viewModel.selectAllExceptNewest(in: group)
+-                    }
+-                    
+-                    Spacer()
+-                }
+-                
+-                Divider()
+-                
+-                VStack(spacing: 8) {
+-                    ForEach(group.tabs) { tab in
+-                        TabRow(
+-                            tab: tab,
+-                            isOldest: tab.id == group.oldestTab?.id,
+-                            isNewest: tab.id == group.newestTab?.id,
+-                            isSelected: viewModel.selectedTabIds.contains(tab.id),
+-                            showAge: viewModel.config.showAge
+-                        ) {
+-                            viewModel.toggleSelection(tab)
+-                        } onFocus: {
+-                            await viewModel.activateTab(tab)
+-                        }
+-                    }
+-                }
+-            }
+-            .padding(.vertical, 8)
+-        }
+-    }
+-}
+-
+-struct StatBadge: View {
+-    let value: Int
+-    let label: String
+-    let color: Color
+-    
+-    var body: some View {
+-        VStack(spacing: 4) {
+-            Text("\(value)")
+-                .font(.system(size: 20, weight: .bold, design: .rounded))
+-                .foregroundStyle(color)
+-            Text(label)
+-                .font(.caption)
+-                .foregroundStyle(.secondary)
+-        }
+-        .frame(maxWidth: .infinity)
+-        .padding(.vertical, 8)
+-        .background(color.opacity(0.1))
+-        .clipShape(RoundedRectangle(cornerRadius: 8))
+-    }
+-}
+-
+-struct WindowRow: View {
+-    let window: WindowInfo
+-    
+-    var body: some View {
+-        HStack {
+-            Image(systemName: "uiwindow.split.2x1")
+-                .foregroundStyle(.blue)
+-            
+-            VStack(alignment: .leading) {
+-                Text("Window \(window.windowId)")
+-                    .font(.subheadline)
+-                Text("\(window.tabCount) tabs")
+-                    .font(.caption)
+-                    .foregroundStyle(.secondary)
+-            }
+-            
+-            Spacer()
+-            
+-            Text("\(window.tabCount)")
+-                .font(.caption.bold())
+-                .foregroundStyle(.white)
+-                .padding(.horizontal, 8)
+-                .padding(.vertical, 4)
+-                .background(Color.blue)
+-                .clipShape(Capsule())
+-        }
+-        .padding(.vertical, 4)
+-    }
+-}
+-
+-struct ActionButton: View {
+-    let title: String
+-    let icon: String
+-    let color: Color
+-    let action: () -> Void
+-    
+-    var body: some View {
+-        Button(action: action) {
+-            HStack(spacing: 4) {
+-                Image(systemName: icon)
+-                Text(title)
+-                    .font(.caption.bold())
+-            }
+-            .foregroundStyle(color)
+-            .padding(.horizontal, 10)
+-            .padding(.vertical, 6)
+-            .background(color.opacity(0.15))
+-            .clipShape(RoundedRectangle(cornerRadius: 6))
+-        }
+-        .buttonStyle(.plain)
+-    }
+-}
+-
+-struct TabRow: View {
+-    let tab: TabInfo
+-    let isOldest: Bool
+-    let isNewest: Bool
+-    let isSelected: Bool
+-    let showAge: Bool
+-    let onToggle: () -> Void
+-    let onFocus: () async -> Void
+-    
+-    var body: some View {
+-        HStack(spacing: 12) {
+-            Toggle("", isOn: .init(
+-                get: { isSelected },
+-                set: { _ in onToggle() }
+-            ))
+-            .toggleStyle(.checkbox)
+-            
+-            HStack(spacing: 4) {
+-                if isOldest {
+-                    Image(systemName: "1.circle.fill")
+-                        .foregroundStyle(.green)
+-                    Text("FIRST")
+-                        .foregroundStyle(.green)
+-                } else if isNewest {
+-                    Image(systemName: "star.circle.fill")
+-                        .foregroundStyle(.blue)
+-                    Text("LAST")
+-                        .foregroundStyle(.blue)
+-                }
+-            }
+-            .font(.caption.bold())
+-            .frame(width: 80, alignment: .leading)
+-            
+-            VStack(alignment: .leading, spacing: 2) {
+-                Text(tab.title)
+-                    .font(.subheadline)
+-                    .lineLimit(1)
+-                Text("Window \(tab.windowId) • Tab \(tab.tabIndex)")
+-                    .font(.caption2)
+-                    .foregroundStyle(.secondary)
+-            }
+-            
+-            Spacer()
+-            
+-            if showAge {
+-                Text(tab.ageDescription)
+-                    .font(.caption)
+-                    .foregroundStyle(ageColor)
+-            }
+-            
+-            Button {
+-                Task { await onFocus() }
+-            } label: {
+-                Image(systemName: "eye")
+-                    .foregroundStyle(.secondary)
+-            }
+-            .buttonStyle(.plain)
+-            .help("Focus tab in Chrome")
+-        }
+-        .padding(.vertical, 6)
+-        .background(isSelected ? Color.accentColor.opacity(0.1) : Color.clear)
+-        .clipShape(RoundedRectangle(cornerRadius: 6))
+-    }
+-    
+-    var ageColor: Color {
+-        let seconds = Date().timeIntervalSince(tab.openedAt)
+-        if seconds >= 86400 { return .red }
+-        if seconds >= 3600 { return .orange }
+-        return .green
+-    }
+-}
+-
+-struct AppToolbarContent: ToolbarContent {
+-    @ObservedObject var viewModel: TabManagerViewModel
+-    
+-    var body: some SwiftUI.ToolbarContent {
+-        ToolbarItemGroup(placement: .primaryAction) {
+-            if let analysis = viewModel.userAnalysis, analysis.persona != .light {
+-                // View mode buttons
+-                ForEach(TabManagerViewModel.DuplicateViewMode.allCases, id: \.self) { mode in
+-                    Button {
+-                        viewModel.viewMode = mode
+-                    } label: {
+-                        Label(mode.rawValue, systemImage: mode.icon)
+-                    }
+-                    .keyboardShortcut(viewModeShortcut(for: mode), modifiers: .command)
+-                }
+-                
+-                Button(action: { Task { await viewModel.scan() } }) {
+-                    Label("Scan", systemImage: "arrow.clockwise")
+-                }
+-                .disabled(viewModel.isScanning)
+-                .keyboardShortcut("r", modifiers: .command)
+-            }
+-        }
+-    }
+-}
+-
+-func viewModeShortcut(for mode: TabManagerViewModel.DuplicateViewMode) -> KeyEquivalent {
+-    switch mode {
+-    case .overall: return "1"
+-    case .byWindow: return "2"
+-    case .byDomain: return "3"
+-    case .crossWindow: return "4"
+-    }
+-}
+-
+-// MARK: - Review Plan View
+-
+-struct ReviewPlanView: View {
+-    @ObservedObject var viewModel: TabManagerViewModel
+-    
+-    var totalToClose: Int {
+-        viewModel.reviewPlanItems.filter { $0.isIncluded }.reduce(0) { $0 + $1.closeTabs.count }
+-    }
+-    
+-    var body: some View {
+-        VStack(spacing: 0) {
+-            // Header
+-            HStack {
+-                VStack(alignment: .leading, spacing: 4) {
+-                    Text("Review Cleanup Plan")
+-                        .font(.title2.bold())
+-                    Text("\(viewModel.reviewPlanItems.count) groups • Closing \(totalToClose) tabs")
+-                        .font(.subheadline)
+-                        .foregroundStyle(.secondary)
+-                }
+-                
+-                Spacer()
+-                
+-                HStack(spacing: 12) {
+-                    Button {
+-                        viewModel.cancelReviewPlan()
+-                    } label: {
+-                        Text("Cancel")
+-                    }
+-                    .keyboardShortcut(.cancelAction)
+-                    
+-                    Button {
+-                        Task { await viewModel.executeReviewPlan() }
+-                    } label: {
+-                        Label("Close \(totalToClose) Tabs", systemImage: "xmark.bin")
+-                    }
+-                    .buttonStyle(.borderedProminent)
+-                    .tint(.red)
+-                    .disabled(totalToClose == 0)
+-                    .keyboardShortcut(.defaultAction)
+-                    .help("Permanently close the selected tabs")
+-                }
+-            }
+-            .padding()
+-            .background(Color(.windowBackgroundColor))
+-            
+-            // Plan items
+-            List($viewModel.reviewPlanItems) { $item in
+-                ReviewPlanItemRow(item: $item)
+-            }
+-            .listStyle(.plain)
+-        }
+-        .background(Color(.controlBackgroundColor))
+-    }
+-}
+-
+-struct ReviewPlanItemRow: View {
+-    @Binding var item: TabManagerViewModel.ReviewPlanItem
+-    
+-    var body: some View {
+-        HStack(spacing: 16) {
+-            Toggle("", isOn: $item.isIncluded)
+-                .toggleStyle(.checkbox)
+-            
+-            VStack(alignment: .leading, spacing: 4) {
+-                Text(item.group.displayUrl)
+-                    .font(.subheadline)
+-                    .lineLimit(1)
+-                
+-                HStack(spacing: 8) {
+-                    Label(item.keepTab.title.prefix(40), systemImage: "checkmark.circle.fill")
+-                        .font(.caption)
+-                        .foregroundStyle(.green)
+-                    
+-                    Text("KEEP")
+-                        .font(.caption.bold())
+-                        .foregroundStyle(.green)
+-                }
+-                
+-                Text("Closing \(item.closeTabs.count) tabs:")
+-                    .font(.caption)
+-                    .foregroundStyle(.secondary)
+-                
+-                ForEach(item.closeTabs) { tab in
+-                    Label(tab.title.prefix(50), systemImage: "xmark.circle")
+-                        .font(.caption2)
+-                        .foregroundStyle(.red)
+-                        .padding(.leading, 16)
+-                }
+-            }
+-            
+-            Spacer()
+-            
+-            Text("\(item.closeTabs.count)")
+-                .font(.title2.bold())
+-                .foregroundStyle(item.isIncluded ? .red : .secondary)
+-        }
+-        .padding(.vertical, 8)
+-        .opacity(item.isIncluded ? 1.0 : 0.5)
+-    }
+-}
+-
+-// MARK: - Paywall View
+-
+-struct PaywallView: View {
+-    @StateObject private var licenseManager = LicenseManager.shared
+-    @Environment(\.dismiss) private var dismiss
+-    
+-    var body: some View {
+-        VStack(spacing: 24) {
+-            // Header
+-            VStack(spacing: 8) {
+-                Image(systemName: "crown.fill")
+-                    .font(.system(size: 64))
+-                    .foregroundStyle(.yellow)
+-                
+-                Text(PaywallCopy.title)
+-                    .font(.largeTitle.bold())
+-                
+-                Text(PaywallCopy.subtitle)
+-                    .font(.title3)
+-                    .foregroundStyle(.secondary)
+-            }
+-            
+-            // Pricing
+-            Text(PaywallCopy.price)
+-                .font(.title2.bold())
+-                .padding()
+-                .background(Color.blue.opacity(0.1))
+-                .cornerRadius(8)
+-            
+-            // Features
+-            VStack(alignment: .leading, spacing: 12) {
+-                ForEach(PaywallCopy.features, id: \.self) { feature in
+-                    Label(feature, systemImage: "checkmark.circle.fill")
+-                        .font(.subheadline)
+-                }
+-            }
+-            .frame(maxWidth: .infinity, alignment: .leading)
+-            
+-            Spacer()
+-            
+-            // Actions
+-            VStack(spacing: 12) {
+-                Button {
+-                    Task {
+-                        let success = await licenseManager.purchasePro()
+-                        if success {
+-                            dismiss()
+-                        }
+-                    }
+-                } label: {
+-                    if licenseManager.isLoading {
+-                        ProgressView()
+-                            .controlSize(.small)
+-                    } else {
+-                        Text(PaywallCopy.callToAction)
+-                            .font(.headline)
+-                    }
+-                }
+-                .buttonStyle(.borderedProminent)
+-                .controlSize(.large)
+-                .disabled(licenseManager.isLoading)
+-                
+-                Button {
+-                    Task {
+-                        let restored = await licenseManager.restorePurchases()
+-                        if restored {
+-                            dismiss()
+-                        }
+-                    }
+-                } label: {
+-                    Text("Restore Purchases")
+-                }
+-                .buttonStyle(.plain)
+-                .disabled(licenseManager.isLoading)
+-                
+-                Button {
+-                    dismiss()
+-                } label: {
+-                    Text("Maybe Later")
+-                }
+-                .buttonStyle(.plain)
+-            }
+-        }
+-        .padding(40)
+-        .frame(width: 500, height: 600)
+-    }
+-}
+-
+ #Preview {
+     ContentView()
+         .frame(width: 1000, height: 700)
+diff --git a/Sources/ChromeTabManager/Licensing.swift b/Sources/ChromeTabManager/Licensing.swift
+index 50bae5b..08d57b6 100644
+--- a/Sources/ChromeTabManager/Licensing.swift
++++ b/Sources/ChromeTabManager/Licensing.swift
+@@ -1,60 +1,54 @@
+ import Foundation
+ import StoreKit
+ 
+-// MARK: - License Manager
+-//
+-// Simple model: User purchases once, gets lifetime access.
+-// No account needed - App Store handles receipt verification.
+-
+ @MainActor
+ class LicenseManager: ObservableObject {
+     static let shared = LicenseManager()
+-    
+-    @Published var isPro = false
++
++    @Published var isLicensed = false
+     @Published var isLoading = false
+     @Published var errorMessage: String?
+     @Published private(set) var dailyCloseCount = 0
+-    
++
+     private let userDefaults = UserDefaults.standard
+-    private let isProKey = "isProPurchased"
++    private let licenseKey = "isProPurchased"
+     private let dailyCloseCountKey = "dailyCloseCount"
+     private let dailyCloseDateKey = "dailyCloseDate"
+-    
+-    // Free tier cap. Pro users are unlimited.
++
++    var isPro: Bool { isLicensed }
++
+     let freeDailyCloseLimit = 10
+-    
++
+     private init() {
+-        isPro = userDefaults.bool(forKey: isProKey)
++        isLicensed = userDefaults.bool(forKey: licenseKey)
+         refreshDailyState()
+     }
+-    
++
+     func purchasePro() async -> Bool {
+         isLoading = true
+         errorMessage = nil
+-        
++
+         #if DEBUG
+-        // Simulate purchase in debug
+         try? await Task.sleep(nanoseconds: 1_000_000_000)
+-        setProPurchased()
++        setLicensed()
+         isLoading = false
+         return true
+         #else
+-        // Production: Use StoreKit to purchase
+         do {
+-            let product = try await Product.products(for: ["com.pranay.chrometabmanager.pro"]).first
++            let product = try await Product.products(for: ["com.pranay.chrometabmanager.lifetime"]).first
+             guard let product = product else {
+                 errorMessage = "Product not found"
+                 isLoading = false
+                 return false
+             }
+-            
++
+             let result = try await product.purchase()
+-            
++
+             switch result {
+             case .success(let verification):
+                 let transaction = try checkVerified(verification)
+                 await transaction.finish()
+-                setProPurchased()
++                setLicensed()
+                 isLoading = false
+                 return true
+             case .userCancelled:
+@@ -76,74 +70,71 @@ class LicenseManager: ObservableObject {
+         }
+         #endif
+     }
+-    
++
+     func restorePurchases() async -> Bool {
+         isLoading = true
+-        
++
+         #if DEBUG
+         try? await Task.sleep(nanoseconds: 500_000_000)
+-        setProPurchased()
++        setLicensed()
+         isLoading = false
+-        return isPro
++        return isLicensed
+         #else
+         do {
+             try await AppStore.sync()
+             for await result in Transaction.currentEntitlements {
+                 if case .verified(let transaction) = result {
+-                    if transaction.productID == "com.pranay.chrometabmanager.pro" {
+-                        setProPurchased()
++                    if transaction.productID == "com.pranay.chrometabmanager.lifetime" || transaction.productID == "com.pranay.chrometabmanager.pro" {
++                        setLicensed()
+                         isLoading = false
+                         return true
+                     }
+                 }
+             }
+             isLoading = false
+-            return isPro
++            return isLicensed
+         } catch {
+             errorMessage = error.localizedDescription
+             isLoading = false
+-            return isPro
++            return isLicensed
+         }
+         #endif
+     }
+-    
+-    private func setProPurchased() {
+-        isPro = true
+-        userDefaults.set(true, forKey: isProKey)
++
++    private func setLicensed() {
++        isLicensed = true
++        userDefaults.set(true, forKey: licenseKey)
+     }
+-    
+-    // MARK: - Free Tier Close Accounting
+-    
++
+     var freeClosesRemaining: Int {
+         refreshDailyState()
+         guard !isPro else { return .max }
+         return max(0, freeDailyCloseLimit - dailyCloseCount)
+     }
+-    
++
+     func canCloseTabs(requested: Int) -> Bool {
+         guard requested > 0 else { return true }
+         if isPro { return true }
+         return freeClosesRemaining >= requested
+     }
+-    
++
+     func recordCloses(_ count: Int) {
+         guard count > 0 else { return }
+         refreshDailyState()
+-        
+-        // No cap for Pro, but keep the value coherent for debug visibility.
++
+         if isPro {
+             dailyCloseCount += count
+         } else {
+             dailyCloseCount = min(freeDailyCloseLimit, dailyCloseCount + count)
+         }
+-        
++
+         userDefaults.set(dailyCloseCount, forKey: dailyCloseCountKey)
+     }
+-    
++
+     private func refreshDailyState() {
+         let today = Self.dayStamp(for: Date())
+         let savedDay = userDefaults.string(forKey: dailyCloseDateKey)
+-        
++
+         if savedDay != today {
+             dailyCloseCount = 0
+             userDefaults.set(0, forKey: dailyCloseCountKey)
+@@ -152,7 +143,7 @@ class LicenseManager: ObservableObject {
+             dailyCloseCount = userDefaults.integer(forKey: dailyCloseCountKey)
+         }
+     }
+-    
++
+     private static func dayStamp(for date: Date) -> String {
+         let formatter = DateFormatter()
+         formatter.calendar = Calendar(identifier: .gregorian)
+@@ -161,7 +152,7 @@ class LicenseManager: ObservableObject {
+         formatter.dateFormat = "yyyy-MM-dd"
+         return formatter.string(from: date)
+     }
+-    
++
+     #if !DEBUG
+     private func checkVerified(_ result: VerificationResult<Transaction>) throws -> Transaction {
+         switch result {
+@@ -179,13 +170,11 @@ enum LicenseError: Error {
+     case productNotFound
+ }
+ 
+-// MARK: - Paywall Copy
+-
+ struct PaywallCopy {
+-    static let title = "Unlock Chrome Tab Manager Pro"
++    static let title = "Unlock Chrome Tab Manager"
+     static let subtitle = "Buy once. Use forever."
+     static let price = "$19.99"
+-    
++
+     static let features = [
+         "Unlimited tab cleanup",
+         "Review changes before closing",
+@@ -194,7 +183,7 @@ struct PaywallCopy {
+         "Advanced filters and search",
+         "Priority support"
+     ]
+-    
++
+     static let callToAction = "Upgrade Now"
+     static let restoreButton = "Restore Purchases"
+ }
+diff --git a/Sources/ChromeTabManager/Models.swift b/Sources/ChromeTabManager/Models.swift
+index adfee7c..17b1e98 100644
+--- a/Sources/ChromeTabManager/Models.swift
++++ b/Sources/ChromeTabManager/Models.swift
+@@ -106,3 +106,54 @@ struct ScanTelemetry {
+     let errors: [String]
+     let durationSeconds: Double
+ }
++
++struct DomainGroup: Identifiable {
++    let id: String
++    let domain: String
++    let tabs: [TabInfo]
++
++    init(domain: String, tabs: [TabInfo]) {
++        self.id = domain
++        self.domain = domain
++        self.tabs = tabs
++    }
++}
++
++struct HealthMetrics {
++    let totalTabs: Int
++    let duplicateCount: Int
++    let domainCount: Int
++    let averageTabsPerWindow: Double
++    let oldestTabAge: TimeInterval
++    let newestTabAge: TimeInterval
++    let recommendedCleanupCount: Int
++
++    static func compute(from tabs: [TabInfo], duplicates: [DuplicateGroup]) -> HealthMetrics {
++        guard !tabs.isEmpty else {
++            return HealthMetrics(
++                totalTabs: 0,
++                duplicateCount: 0,
++                domainCount: 0,
++                averageTabsPerWindow: 0,
++                oldestTabAge: 0,
++                newestTabAge: 0,
++                recommendedCleanupCount: 0
++            )
++        }
++
++        let now = Date()
++        let uniqueDomains = Set(tabs.map { $0.domain })
++        let windowIds = Set(tabs.map { $0.windowId })
++        let ages = tabs.map { now.timeIntervalSince($0.openedAt) }
++
++        return HealthMetrics(
++            totalTabs: tabs.count,
++            duplicateCount: duplicates.reduce(0) { $0 + $1.wastedCount },
++            domainCount: uniqueDomains.count,
++            averageTabsPerWindow: Double(tabs.count) / Double(max(1, windowIds.count)),
++            oldestTabAge: ages.max() ?? 0,
++            newestTabAge: ages.min() ?? 0,
++            recommendedCleanupCount: duplicates.reduce(0) { $0 + $1.wastedCount }
++        )
++    }
++}
+diff --git a/Sources/ChromeTabManager/Preferences.swift b/Sources/ChromeTabManager/Preferences.swift
+index 05a88ef..855cdc1 100644
+--- a/Sources/ChromeTabManager/Preferences.swift
++++ b/Sources/ChromeTabManager/Preferences.swift
+@@ -16,10 +16,10 @@ struct PreferencesView: View {
+                     Label("Duplicates", systemImage: "doc.on.doc")
+                 }
+             
+-            if viewModel.licenseManager.isPro {
+-                ProPreferences(viewModel: viewModel)
++            if viewModel.licenseManager.isLicensed {
++                ProtectionPreferences(viewModel: viewModel)
+                     .tabItem {
+-                        Label("Pro", systemImage: "crown")
++                        Label("Protection", systemImage: "shield")
+                     }
+             }
+         }
+@@ -108,7 +108,7 @@ struct DuplicatePreferences: View {
+     }
+ }
+ 
+-struct ProPreferences: View {
++struct ProtectionPreferences: View {
+     @ObservedObject var viewModel: TabManagerViewModel
+     
+     var body: some View {
+diff --git a/Sources/ChromeTabManager/Utilities/DefaultsKeys.swift b/Sources/ChromeTabManager/Utilities/DefaultsKeys.swift
+index bfc7008..4109ec0 100644
+--- a/Sources/ChromeTabManager/Utilities/DefaultsKeys.swift
++++ b/Sources/ChromeTabManager/Utilities/DefaultsKeys.swift
+@@ -34,6 +34,7 @@ enum DefaultsKeys {
+     // MARK: - Auto-Cleanup
+     static let autoCleanupEnabled = "autoCleanupEnabled"
+     static let autoCleanupMaxAge = "autoCleanupMaxAge"
++    static let autoCleanupInterval = "autoCleanupInterval"
+     
+     // MARK: - UI State
+     static let lastSelectedViewMode = "lastSelectedViewMode"
+diff --git a/Sources/ChromeTabManager/ViewModel.swift b/Sources/ChromeTabManager/ViewModel.swift
+index 75cb7de..a73458b 100644
+--- a/Sources/ChromeTabManager/ViewModel.swift
++++ b/Sources/ChromeTabManager/ViewModel.swift
+@@ -369,7 +369,7 @@ class TabManagerViewModel: ObservableObject {
+             
+             // Show warning if there were failures
+             if result.telemetry.windowsFailed > 0 {
+-                showToast(message: "Warning: \(result.telemetry.windowsFailed) windows failed to scan")
++                displayToast(message: "Warning: \(result.telemetry.windowsFailed) windows failed to scan")
+             }
+             
+             // Update timestamps before storing tabs
+@@ -431,14 +431,11 @@ class TabManagerViewModel: ObservableObject {
+         
+         // Show appropriate feedback
+         if totalAmbiguous > 0 {
+-            showToast(message: "Closed \(totalClosed), \(totalAmbiguous) ambiguous (skipped)")
++            displayToast(message: "Closed \(totalClosed), \(totalAmbiguous) ambiguous (skipped)")
+         } else if totalFailed > 0 {
+-            showToast(message: "Closed \(totalClosed), failed \(totalFailed)")
++            displayToast(message: "Closed \(totalClosed), failed \(totalFailed)")
+         }
+         
+-        // Free-tier close accounting (successful closes only)
+-        licenseManager.recordCloses(totalClosed)
+-        
+         selectedTabIds.removeAll()
+         await scan()
+     }
+@@ -513,7 +510,7 @@ class TabManagerViewModel: ObservableObject {
+         let tabsToClose = itemsToClose.flatMap { $0.closeTabs }
+         
+         guard !tabsToClose.isEmpty else {
+-            showToast(message: "No tabs selected to close")
++            displayToast(message: "No tabs selected to close")
+             showReviewPlan = false
+             return
+         }
+@@ -544,14 +541,11 @@ class TabManagerViewModel: ObservableObject {
+         
+         // Show appropriate feedback
+         if totalAmbiguous > 0 {
+-            showToast(message: "Closed \(totalClosed), \(totalAmbiguous) ambiguous (skipped)")
++            displayToast(message: "Closed \(totalClosed), \(totalAmbiguous) ambiguous (skipped)")
+         } else if totalFailed > 0 {
+-            showToast(message: "Closed \(totalClosed), failed \(totalFailed)")
++            displayToast(message: "Closed \(totalClosed), failed \(totalFailed)")
+         }
+         
+-        // Free-tier close accounting (successful closes only)
+-        licenseManager.recordCloses(totalClosed)
+-        
+         showReviewPlan = false
+         reviewPlanItems.removeAll()
+         await scan()
+@@ -578,8 +572,8 @@ class TabManagerViewModel: ObservableObject {
+     // MARK: - Undo System
+     
+     private func saveSnapshot(for tabs: [TabInfo]) {
+-        // Undo is Pro-only.
+-        guard licenseManager.isPro else {
++        // Undo is available for licensed users.
++        guard licenseManager.isLicensed else {
+             clearUndo()
+             return
+         }
+@@ -611,14 +605,14 @@ class TabManagerViewModel: ObservableObject {
+     }
+     
+     func undoLastClose() async {
+-        guard licenseManager.isPro else {
++        guard licenseManager.isLicensed else {
+             showPaywall = true
+-            showToast(message: "Undo is available in Pro")
++            displayToast(message: "Undo is available for licensed users")
+             return
+         }
+         
+         guard !lastClosedTabs.isEmpty else {
+-            showToast(message: "Nothing to undo")
++            displayToast(message: "Nothing to undo")
+             return
+         }
+         
+@@ -640,9 +634,9 @@ class TabManagerViewModel: ObservableObject {
+         }
+         
+         if failedCount > 0 {
+-            showToast(message: "Restored \(restoredCount), failed \(failedCount)")
++            displayToast(message: "Restored \(restoredCount), failed \(failedCount)")
+         } else {
+-            showToast(message: "Restored \(restoredCount) tabs")
++            displayToast(message: "Restored \(restoredCount) tabs")
+         }
+         
+         clearUndo()
+@@ -652,7 +646,111 @@ class TabManagerViewModel: ObservableObject {
+     func dismissUndo() {
+         clearUndo()
+     }
+-    
++
++    // MARK: - Tab Opening
++
++    func openTab(windowId: Int, url: String) async -> Bool {
++        await ChromeController.shared.openTab(windowId: windowId, url: url)
++    }
++
++    func openTabs(_ tabs: [TabInfo]) async -> Int {
++        var opened = 0
++        for tab in tabs {
++            if await openTab(windowId: tab.windowId, url: tab.url) {
++                opened += 1
++            }
++        }
++        return opened
++    }
++
++    // MARK: - Domain Groups
++
++    var domainGroups: [DomainGroup] {
++        let grouped = Dictionary(grouping: tabs) { $0.domain }
++        return grouped.map { DomainGroup(domain: $0.key, tabs: $0.value) }
++            .sorted { $0.tabs.count > $1.tabs.count }
++    }
++
++    // MARK: - Pruning Candidates
++
++    var pruningCandidates: [TabInfo] {
++        tabs.filter { tab in
++            let age = Date().timeIntervalSince(tab.openedAt)
++            return age > 86400 && duplicateGroups.contains { $0.tabs.contains(tab) }
++        }
++    }
++
++    // MARK: - Domain Operations
++
++    func closeTabsInDomain(_ domain: String) async {
++        let domainTabs = tabs.filter { $0.domain == domain }
++        let byWindow = Dictionary(grouping: domainTabs) { $0.windowId }
++        var closed = 0
++        for (windowId, windowTabs) in byWindow {
++            let targets = windowTabs.map { (url: $0.url, title: $0.title) }
++            let result = await ChromeController.shared.closeTabsDeterministic(windowId: windowId, targets: targets)
++            closed += result.closed
++        }
++        displayToast(message: "Closed \(closed) tabs from \(domain)")
++        await scan()
++    }
++
++    // MARK: - URL Patterns
++
++    @Published var urlPatterns: [URLPattern] = []
++
++    func addURLPattern(_ pattern: URLPattern) {
++        URLPatternStore.shared.savePatterns(URLPatternStore.shared.loadPatterns() + [pattern])
++        urlPatterns = URLPatternStore.shared.loadPatterns()
++    }
++
++    func checkURLPatterns(for tab: TabInfo) -> URLPattern? {
++        urlPatterns.first { $0.matches(tab.url) }
++    }
++
++    // MARK: - Export Format
++
++    enum ExportFormat: String, CaseIterable {
++        case json = "JSON"
++        case html = "HTML"
++        case markdown = "Markdown"
++    }
++    @Published var exportFormat: ExportFormat = .json
++
++    // MARK: - Sessions
++
++    @Published var sessions: [Session] = []
++
++    // MARK: - Cleanup Rules
++
++    @Published var cleanupRules: [CleanupRule] = []
++
++    func loadCleanupRules() {
++        cleanupRules = []
++    }
++
++    // MARK: - Health Metrics
++
++    var healthMetrics: HealthMetrics? {
++        guard !tabs.isEmpty else { return nil }
++        return HealthMetrics.compute(from: tabs, duplicates: duplicateGroups)
++    }
++
++    // MARK: - Archive History
++
++    @Published var showArchiveHistory = false
++    @Published var closedTabHistory: ClosedTabHistoryStore?
++
++    // MARK: - Move Tabs
++
++    func moveTabsToWindow(tabIds: [String], targetWindowId: Int) async {
++
++    }
++
++    func moveTabsToNewWindow(tabIds: [String]) async {
++
++    }
++
+     func closeAllDuplicates(keepOldest: Bool = true) async {
+         let requested = duplicateGroups.reduce(0) { $0 + $1.wastedCount }
+         guard ensureCanClose(requestedCount: requested) else { return }
+@@ -686,16 +784,13 @@ class TabManagerViewModel: ObservableObject {
+         }
+         
+         if totalAmbiguous > 0 {
+-            showToast(message: "Closed \(totalClosed), \(totalAmbiguous) ambiguous (skipped)")
++            displayToast(message: "Closed \(totalClosed), \(totalAmbiguous) ambiguous (skipped)")
+         } else if totalFailed > 0 {
+-            showToast(message: "Closed \(totalClosed), failed \(totalFailed) duplicates")
++            displayToast(message: "Closed \(totalClosed), failed \(totalFailed) duplicates")
+         } else {
+-            showToast(message: "Closed \(totalClosed) duplicate tabs")
++            displayToast(message: "Closed \(totalClosed) duplicate tabs")
+         }
+         
+-        // Free-tier close accounting (successful closes only)
+-        licenseManager.recordCloses(totalClosed)
+-        
+         await scan()
+     }
+     
+@@ -706,25 +801,25 @@ class TabManagerViewModel: ObservableObject {
+             url: tab.url,
+             title: tab.title
+         ) else {
+-            showToast(message: "Tab no longer exists (may have been closed)")
++            displayToast(message: "Tab no longer exists (may have been closed)")
+             return
+         }
+-        
++
+         do {
+             try await ChromeController.shared.activateTab(
+                 windowId: tab.windowId,
+                 tabIndex: currentIndex
+             )
+-            showToast(message: "Switched to tab: \(tab.title.prefix(40))")
++            displayToast(message: "Switched to tab: \(tab.title.prefix(40))")
+         } catch {
+-            showToast(message: "Failed to activate tab: \(error.localizedDescription)")
++            displayToast(message: "Failed to activate tab: \(error.localizedDescription)")
+         }
+     }
+-    
+-    private func showToast(message: String) {
++
++    func displayToast(message: String) {
+         toastMessage = message
+         showToast = true
+-        
++
+         // Auto-hide after 3 seconds
+         Task {
+             try? await Task.sleep(nanoseconds: 3 * 1_000_000_000)
+@@ -771,7 +866,7 @@ class TabManagerViewModel: ObservableObject {
+     func toggleSelection(_ tab: TabInfo) {
+         // Prevent selection of protected domains
+         if isDomainProtected(tab.url) {
+-            showToast(message: "Cannot select: protected domain")
++            displayToast(message: "Cannot select: protected domain")
+             return
+         }
+         
+@@ -816,33 +911,20 @@ class TabManagerViewModel: ObservableObject {
+         invalidateDuplicateCache()
+     }
+     
+-    // MARK: - Free Tier / Confirmation Copy
++    // MARK: - App Actions Confirmation
+     
+     private func ensureCanClose(requestedCount: Int) -> Bool {
+         guard requestedCount > 0 else { return true }
+-        if licenseManager.isPro { return true }
+-        
+-        let remaining = licenseManager.freeClosesRemaining
+-        guard requestedCount <= remaining else {
++        if !licenseManager.isLicensed {
+             showPaywall = true
+-            if remaining == 0 {
+-                showToast(message: "Daily free close limit reached (\(licenseManager.freeDailyCloseLimit)/day). Upgrade to Pro for unlimited cleanup.")
+-            } else {
+-                showToast(message: "Free tier has \(remaining) closes remaining today. Upgrade to Pro for unlimited cleanup.")
+-            }
++            displayToast(message: "Please unlock Chrome Tab Manager to close tabs.")
+             return false
+         }
+-        
+         return true
+     }
+     
+     private func closeConfirmationMessage(for count: Int) -> String {
+-        if licenseManager.isPro {
+-            return "This will close \(count) selected tabs. You can undo this action for 30 seconds."
+-        }
+-        
+-        let remaining = licenseManager.freeClosesRemaining
+-        return "This will close \(count) selected tabs. Free tier has \(remaining) closes remaining today. Upgrade to Pro to enable undo."
++        return "This will close \(count) selected tabs. You can undo this action for 30 seconds."
+     }
+ }
+ 

@@ -1,0 +1,48 @@
+On branch master
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	new file:   Docs/DATA_AUDIT_VERIFICATION.md
+	new file:   Docs/DATA_FLOW_AUDIT_IMPLEMENTATION_COMPLETE.md
+	modified:   Sources/ChromeTabManager/ChromeController.swift
+	modified:   Sources/ChromeTabManager/ContentView.swift
+	modified:   Sources/ChromeTabManager/Licensing.swift
+	new file:   Sources/ChromeTabManager/Managers/AutoArchiveManager.swift
+	new file:   Sources/ChromeTabManager/Managers/SnapshotManager.swift
+	new file:   Sources/ChromeTabManager/Models/CleanupRule.swift
+	new file:   Sources/ChromeTabManager/Models/URLPattern.swift
+	new file:   Sources/ChromeTabManager/Stores/ClosedTabHistoryStore.swift
+	new file:   Sources/ChromeTabManager/Stores/StatisticsStore.swift
+	new file:   Sources/ChromeTabManager/Utilities/DateFormats.swift
+	new file:   Sources/ChromeTabManager/Utilities/DefaultsKeys.swift
+	new file:   Sources/ChromeTabManager/Utilities/ErrorPresenter.swift
+	new file:   Sources/ChromeTabManager/Utilities/FilterActor.swift
+	new file:   Sources/ChromeTabManager/Utilities/LRUCache.swift
+	new file:   Sources/ChromeTabManager/Utilities/Logger.swift
+	new file:   Sources/ChromeTabManager/Utilities/RetryHandler.swift
+	new file:   Sources/ChromeTabManager/Utilities/SecurityUtils.swift
+	new file:   Sources/ChromeTabManager/Utilities/String+HTML.swift
+	modified:   Sources/ChromeTabManager/ViewModel.swift
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   Sources/ChromeTabManager/Licensing.swift
+	modified:   Sources/ChromeTabManager/Models.swift
+	modified:   Sources/ChromeTabManager/Preferences.swift
+	modified:   Sources/ChromeTabManager/ViewModel.swift
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	Docs/ERROR_HANDLING_AUDIT_IMPLEMENTATION.md
+	Recovery/
+	Sources/ChromeTabManager/Managers/AutoCleanupManager.swift
+	Sources/ChromeTabManager/Managers/ExportManager.swift
+	Sources/ChromeTabManager/Managers/MenuBarController.swift
+	Sources/ChromeTabManager/Models/ClosedTabHistory.swift
+	Sources/ChromeTabManager/Models/Session.swift
+	Sources/ChromeTabManager/Protocols/
+	Sources/ChromeTabManager/Services/
+	Sources/ChromeTabManager/Stores/CleanupRuleStore.swift
+	Sources/ChromeTabManager/Views/
+	build-audit.md
+
