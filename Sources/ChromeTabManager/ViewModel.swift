@@ -179,18 +179,21 @@ class TabManagerViewModel: ObservableObject {
     
     private func setupNotifications() {
         NotificationCenter.default.publisher(for: .scanTabs)
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 Task { await self?.scan() }
             }
             .store(in: &cancellables)
         
         NotificationCenter.default.publisher(for: .smartSelect)
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.smartSelect()
             }
             .store(in: &cancellables)
         
         NotificationCenter.default.publisher(for: .closeSelected)
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 // Route through same gating pipeline as UI button
                 self?.requestCloseSelected()
@@ -198,18 +201,21 @@ class TabManagerViewModel: ObservableObject {
             .store(in: &cancellables)
         
         NotificationCenter.default.publisher(for: .showPreferences)
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.showPreferences = true
             }
             .store(in: &cancellables)
         
         NotificationCenter.default.publisher(for: .reviewPlan)
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.requestCloseAllDuplicates(keepOldest: true)
             }
             .store(in: &cancellables)
         
         NotificationCenter.default.publisher(for: .focusFilter)
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 // Focus is handled directly by SuperUserView's @FocusState
                 // via .onReceive(NotificationCenter.default.publisher(for: .focusFilter))
@@ -363,7 +369,7 @@ class TabManagerViewModel: ObservableObject {
             
             // Show warning if there were failures
             if result.telemetry.windowsFailed > 0 {
-                showToast(message: "Warning: \(result.telemetry.windowsFailed) windows failed to scan")
+                displayToast(message: "Warning: \(result.telemetry.windowsFailed) windows failed to scan")
             }
             
             // Update timestamps before storing tabs
@@ -425,9 +431,9 @@ class TabManagerViewModel: ObservableObject {
         
         // Show appropriate feedback
         if totalAmbiguous > 0 {
-            showToast(message: "Closed \(totalClosed), \(totalAmbiguous) ambiguous (skipped)")
+            displayToast(message: "Closed \(totalClosed), \(totalAmbiguous) ambiguous (skipped)")
         } else if totalFailed > 0 {
-            showToast(message: "Closed \(totalClosed), failed \(totalFailed)")
+            displayToast(message: "Closed \(totalClosed), failed \(totalFailed)")
         }
         
         selectedTabIds.removeAll()
@@ -437,11 +443,12 @@ class TabManagerViewModel: ObservableObject {
     func requestCloseSelected() {
         let toClose = tabs.filter { selectedTabIds.contains($0.id) }
         guard !toClose.isEmpty else { return }
+        guard ensureCanClose(requestedCount: toClose.count) else { return }
         
         // Check if confirmation needed based on persona
         if config.confirmClose && toClose.count > 1 {
             confirmationTitle = "Close \(toClose.count) tabs?"
-            confirmationMessage = "This will close \(toClose.count) selected tabs. You can undo this action for 30 seconds."
+            confirmationMessage = closeConfirmationMessage(for: toClose.count)
             confirmationAction = { [weak self] in
                 await self?.closeSelectedTabs()
             }
@@ -485,6 +492,7 @@ class TabManagerViewModel: ObservableObject {
     func requestCloseAllDuplicates(keepOldest: Bool = true) {
         let totalToClose = duplicateGroups.reduce(0) { $0 + $1.wastedCount }
         guard totalToClose > 0 else { return }
+        guard ensureCanClose(requestedCount: totalToClose) else { return }
         
         // Build review plan
         reviewPlanItems = duplicateGroups.map { group in
@@ -502,7 +510,11 @@ class TabManagerViewModel: ObservableObject {
         let tabsToClose = itemsToClose.flatMap { $0.closeTabs }
         
         guard !tabsToClose.isEmpty else {
-            showToast(message: "No tabs selected to close")
+            displayToast(message: "No tabs selected to close")
+            showReviewPlan = false
+            return
+        }
+        guard ensureCanClose(requestedCount: tabsToClose.count) else {
             showReviewPlan = false
             return
         }
@@ -529,9 +541,9 @@ class TabManagerViewModel: ObservableObject {
         
         // Show appropriate feedback
         if totalAmbiguous > 0 {
-            showToast(message: "Closed \(totalClosed), \(totalAmbiguous) ambiguous (skipped)")
+            displayToast(message: "Closed \(totalClosed), \(totalAmbiguous) ambiguous (skipped)")
         } else if totalFailed > 0 {
-            showToast(message: "Closed \(totalClosed), failed \(totalFailed)")
+            displayToast(message: "Closed \(totalClosed), failed \(totalFailed)")
         }
         
         showReviewPlan = false
@@ -560,7 +572,12 @@ class TabManagerViewModel: ObservableObject {
     // MARK: - Undo System
     
     private func saveSnapshot(for tabs: [TabInfo]) {
-        // Save snapshot for undo (available to all users)
+        // Undo is available for licensed users.
+        guard licenseManager.isLicensed else {
+            clearUndo()
+            return
+        }
+        
         lastClosedTabs = tabs.map { ClosedTabInfo(
             windowId: $0.windowId,
             url: $0.url,
@@ -588,8 +605,14 @@ class TabManagerViewModel: ObservableObject {
     }
     
     func undoLastClose() async {
+        guard licenseManager.isLicensed else {
+            showPaywall = true
+            displayToast(message: "Undo is available for licensed users")
+            return
+        }
+        
         guard !lastClosedTabs.isEmpty else {
-            showToast(message: "Nothing to undo")
+            displayToast(message: "Nothing to undo")
             return
         }
         
@@ -611,9 +634,9 @@ class TabManagerViewModel: ObservableObject {
         }
         
         if failedCount > 0 {
-            showToast(message: "Restored \(restoredCount), failed \(failedCount)")
+            displayToast(message: "Restored \(restoredCount), failed \(failedCount)")
         } else {
-            showToast(message: "Restored \(restoredCount) tabs")
+            displayToast(message: "Restored \(restoredCount) tabs")
         }
         
         clearUndo()
@@ -623,8 +646,115 @@ class TabManagerViewModel: ObservableObject {
     func dismissUndo() {
         clearUndo()
     }
-    
+
+    // MARK: - Tab Opening
+
+    func openTab(windowId: Int, url: String) async -> Bool {
+        await ChromeController.shared.openTab(windowId: windowId, url: url)
+    }
+
+    func openTabs(_ tabs: [TabInfo]) async -> Int {
+        var opened = 0
+        for tab in tabs {
+            if await openTab(windowId: tab.windowId, url: tab.url) {
+                opened += 1
+            }
+        }
+        return opened
+    }
+
+    // MARK: - Domain Groups
+
+    var domainGroups: [DomainGroup] {
+        let grouped = Dictionary(grouping: tabs) { $0.domain }
+        return grouped.map { DomainGroup(domain: $0.key, tabs: $0.value) }
+            .sorted { $0.tabs.count > $1.tabs.count }
+    }
+
+    // MARK: - Pruning Candidates
+
+    var pruningCandidates: [TabInfo] {
+        tabs.filter { tab in
+            let age = Date().timeIntervalSince(tab.openedAt)
+            return age > 86400 && duplicateGroups.contains { $0.tabs.contains(tab) }
+        }
+    }
+
+    // MARK: - Domain Operations
+
+    func closeTabsInDomain(_ domain: String) async {
+        let domainTabs = tabs.filter { $0.domain == domain }
+        let byWindow = Dictionary(grouping: domainTabs) { $0.windowId }
+        var closed = 0
+        for (windowId, windowTabs) in byWindow {
+            let targets = windowTabs.map { (url: $0.url, title: $0.title) }
+            let result = await ChromeController.shared.closeTabsDeterministic(windowId: windowId, targets: targets)
+            closed += result.closed
+        }
+        displayToast(message: "Closed \(closed) tabs from \(domain)")
+        await scan()
+    }
+
+    // MARK: - URL Patterns
+
+    @Published var urlPatterns: [URLPattern] = []
+
+    func addURLPattern(_ pattern: URLPattern) {
+        URLPatternStore.shared.savePatterns(URLPatternStore.shared.loadPatterns() + [pattern])
+        urlPatterns = URLPatternStore.shared.loadPatterns()
+    }
+
+    func checkURLPatterns(for tab: TabInfo) -> URLPattern? {
+        urlPatterns.first { $0.matches(tab.url) }
+    }
+
+    // MARK: - Export Format
+
+    enum ExportFormat: String, CaseIterable {
+        case json = "JSON"
+        case html = "HTML"
+        case markdown = "Markdown"
+    }
+    @Published var exportFormat: ExportFormat = .json
+
+    // MARK: - Sessions
+
+    @Published var sessions: [Session] = []
+
+    // MARK: - Cleanup Rules
+
+    @Published var cleanupRules: [CleanupRule] = []
+
+    func loadCleanupRules() {
+        cleanupRules = []
+    }
+
+    // MARK: - Health Metrics
+
+    var healthMetrics: HealthMetrics? {
+        guard !tabs.isEmpty else { return nil }
+        return HealthMetrics.compute(from: tabs, duplicates: duplicateGroups)
+    }
+
+    // MARK: - Archive History
+
+    @Published var showArchiveHistory = false
+    @Published var closedTabHistory: ClosedTabHistoryStore?
+
+    // MARK: - Move Tabs
+
+    func moveTabsToWindow(tabIds: [String], targetWindowId: Int) async {
+
+    }
+
+    func moveTabsToNewWindow(tabIds: [String]) async {
+
+    }
+
     func closeAllDuplicates(keepOldest: Bool = true) async {
+        let requested = duplicateGroups.reduce(0) { $0 + $1.wastedCount }
+        guard ensureCanClose(requestedCount: requested) else { return }
+        
         // Collect all tabs to close grouped by window for deterministic close
         var tabsByWindow: [Int: [TabInfo]] = [:]
         
@@ -654,11 +784,11 @@ class TabManagerViewModel: ObservableObject {
         }
         
         if totalAmbiguous > 0 {
-            showToast(message: "Closed \(totalClosed), \(totalAmbiguous) ambiguous (skipped)")
+            displayToast(message: "Closed \(totalClosed), \(totalAmbiguous) ambiguous (skipped)")
         } else if totalFailed > 0 {
-            showToast(message: "Closed \(totalClosed), failed \(totalFailed) duplicates")
+            displayToast(message: "Closed \(totalClosed), failed \(totalFailed) duplicates")
         } else {
-            showToast(message: "Closed \(totalClosed) duplicate tabs")
+            displayToast(message: "Closed \(totalClosed) duplicate tabs")
         }
         
         await scan()
@@ -671,25 +801,25 @@ class TabManagerViewModel: ObservableObject {
             url: tab.url,
             title: tab.title
         ) else {
-            showToast(message: "Tab no longer exists (may have been closed)")
+            displayToast(message: "Tab no longer exists (may have been closed)")
             return
         }
-        
+
         do {
             try await ChromeController.shared.activateTab(
                 windowId: tab.windowId,
                 tabIndex: currentIndex
             )
-            showToast(message: "Switched to tab: \(tab.title.prefix(40))")
+            displayToast(message: "Switched to tab: \(tab.title.prefix(40))")
         } catch {
-            showToast(message: "Failed to activate tab: \(error.localizedDescription)")
+            displayToast(message: "Failed to activate tab: \(error.localizedDescription)")
         }
     }
-    
-    private func showToast(message: String) {
+
+    func displayToast(message: String) {
         toastMessage = message
         showToast = true
-        
+
         // Auto-hide after 3 seconds
         Task {
             try? await Task.sleep(nanoseconds: 3 * 1_000_000_000)
@@ -736,7 +866,7 @@ class TabManagerViewModel: ObservableObject {
     func toggleSelection(_ tab: TabInfo) {
         // Prevent selection of protected domains
         if isDomainProtected(tab.url) {
-            showToast(message: "Cannot select: protected domain")
+            displayToast(message: "Cannot select: protected domain")
             return
         }
         
@@ -779,6 +909,22 @@ class TabManagerViewModel: ObservableObject {
         
         // Invalidate cache since data changed
         invalidateDuplicateCache()
+    }
+    
+    // MARK: - App Actions Confirmation
+    
+    private func ensureCanClose(requestedCount: Int) -> Bool {
+        guard requestedCount > 0 else { return true }
+        if !licenseManager.isLicensed {
+            showPaywall = true
+            displayToast(message: "Please unlock Chrome Tab Manager to close tabs.")
+            return false
+        }
+        return true
+    }
+    
+    private func closeConfirmationMessage(for count: Int) -> String {
+        return "This will close \(count) selected tabs. You can undo this action for 30 seconds."
     }
 }
 

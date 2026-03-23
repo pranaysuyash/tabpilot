@@ -16,10 +16,10 @@ struct PreferencesView: View {
                     Label("Duplicates", systemImage: "doc.on.doc")
                 }
             
-            if viewModel.licenseManager.isPro {
-                ProPreferences(viewModel: viewModel)
+            if viewModel.licenseManager.isLicensed {
+                ProtectionPreferences(viewModel: viewModel)
                     .tabItem {
-                        Label("Pro", systemImage: "crown")
+                        Label("Protection", systemImage: "shield")
                     }
             }
         }
@@ -108,7 +108,7 @@ struct DuplicatePreferences: View {
     }
 }
 
-struct ProPreferences: View {
+struct ProtectionPreferences: View {
     @ObservedObject var viewModel: TabManagerViewModel
     
     var body: some View {

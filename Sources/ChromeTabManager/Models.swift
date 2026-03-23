@@ -106,3 +106,54 @@ struct ScanTelemetry {
     let errors: [String]
     let durationSeconds: Double
 }
+
+struct DomainGroup: Identifiable {
+    let id: String
+    let domain: String
+    let tabs: [TabInfo]
+
+    init(domain: String, tabs: [TabInfo]) {
+        self.id = domain
+        self.domain = domain
+        self.tabs = tabs
+    }
+}
+
+struct HealthMetrics {
+    let totalTabs: Int
+    let duplicateCount: Int
+    let domainCount: Int
+    let averageTabsPerWindow: Double
+    let oldestTabAge: TimeInterval
+    let newestTabAge: TimeInterval
+    let recommendedCleanupCount: Int
+
+    static func compute(from tabs: [TabInfo], duplicates: [DuplicateGroup]) -> HealthMetrics {
+        guard !tabs.isEmpty else {
+            return HealthMetrics(
+                totalTabs: 0,
+                duplicateCount: 0,
+                domainCount: 0,
+                averageTabsPerWindow: 0,
+                oldestTabAge: 0,
+                newestTabAge: 0,
+                recommendedCleanupCount: 0
+            )
+        }
+
+        let now = Date()
+        let uniqueDomains = Set(tabs.map { $0.domain })
+        let windowIds = Set(tabs.map { $0.windowId })
+        let ages = tabs.map { now.timeIntervalSince($0.openedAt) }
+
+        return HealthMetrics(
+            totalTabs: tabs.count,
+            duplicateCount: duplicates.reduce(0) { $0 + $1.wastedCount },
+            domainCount: uniqueDomains.count,
+            averageTabsPerWindow: Double(tabs.count) / Double(max(1, windowIds.count)),
+            oldestTabAge: ages.max() ?? 0,
+            newestTabAge: ages.min() ?? 0,
+            recommendedCleanupCount: duplicates.reduce(0) { $0 + $1.wastedCount }
+        )
+    }
+}

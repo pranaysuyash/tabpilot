@@ -1,0 +1,355 @@
+diff --git a/Sources/ChromeTabManager/Licensing.swift b/Sources/ChromeTabManager/Licensing.swift
+index 50bae5b..bab7ff6 100644
+--- a/Sources/ChromeTabManager/Licensing.swift
++++ b/Sources/ChromeTabManager/Licensing.swift
+@@ -10,23 +10,21 @@ import StoreKit
+ class LicenseManager: ObservableObject {
+     static let shared = LicenseManager()
+     
+-    @Published var isPro = false
++    @Published var isLicensed = false
+     @Published var isLoading = false
+     @Published var errorMessage: String?
+     @Published private(set) var dailyCloseCount = 0
+     
+     private let userDefaults = UserDefaults.standard
+-    private let isProKey = "isProPurchased"
++    // Keep legacy key string for backwards compatibility
++    private let licenseKey = "isProPurchased"
+     private let dailyCloseCountKey = "dailyCloseCount"
+     private let dailyCloseDateKey = "dailyCloseDate"
+     
+-    // Free tier cap. Pro users are unlimited.
++    // Free tier cap. Licensed users are unlimited.
+     let freeDailyCloseLimit = 10
+     
+     private init() {
+-        isPro = userDefaults.bool(forKey: isProKey)
+-        refreshDailyState()
+-    }
+     
+     func purchasePro() async -> Bool {
+         isLoading = true
+@@ -35,13 +33,13 @@ class LicenseManager: ObservableObject {
+         #if DEBUG
+         // Simulate purchase in debug
+         try? await Task.sleep(nanoseconds: 1_000_000_000)
+-        setProPurchased()
++        setLicensed()
+         isLoading = false
+         return true
+         #else
+         // Production: Use StoreKit to purchase
+         do {
+-            let product = try await Product.products(for: ["com.pranay.chrometabmanager.pro"]).first
++            let product = try await Product.products(for: ["com.pranay.chrometabmanager.lifetime"]).first
+             guard let product = product else {
+                 errorMessage = "Product not found"
+                 isLoading = false
+@@ -54,7 +52,7 @@ class LicenseManager: ObservableObject {
+             case .success(let verification):
+                 let transaction = try checkVerified(verification)
+                 await transaction.finish()
+-                setProPurchased()
++                setLicensed()
+                 isLoading = false
+                 return true
+             case .userCancelled:
+@@ -82,34 +80,34 @@ class LicenseManager: ObservableObject {
+         
+         #if DEBUG
+         try? await Task.sleep(nanoseconds: 500_000_000)
+-        setProPurchased()
++        setLicensed()
+         isLoading = false
+-        return isPro
++        return isLicensed
+         #else
+         do {
+             try await AppStore.sync()
+             for await result in Transaction.currentEntitlements {
+                 if case .verified(let transaction) = result {
+-                    if transaction.productID == "com.pranay.chrometabmanager.pro" {
+-                        setProPurchased()
++                    if transaction.productID == "com.pranay.chrometabmanager.lifetime" || transaction.productID == "com.pranay.chrometabmanager.pro" {
++                        setLicensed()
+                         isLoading = false
+                         return true
+                     }
+                 }
+             }
+             isLoading = false
+-            return isPro
++            return isLicensed
+         } catch {
+             errorMessage = error.localizedDescription
+             isLoading = false
+-            return isPro
++            return isLicensed
+         }
+         #endif
+     }
+     
+-    private func setProPurchased() {
+-        isPro = true
+-        userDefaults.set(true, forKey: isProKey)
++    private func setLicensed() {
++        isLicensed = true
++        userDefaults.set(true, forKey: licenseKey)
+     }
+     
+     // MARK: - Free Tier Close Accounting
+@@ -182,7 +180,7 @@ enum LicenseError: Error {
+ // MARK: - Paywall Copy
+ 
+ struct PaywallCopy {
+-    static let title = "Unlock Chrome Tab Manager Pro"
++    static let title = "Unlock Chrome Tab Manager"
+     static let subtitle = "Buy once. Use forever."
+     static let price = "$19.99"
+     
+diff --git a/Sources/ChromeTabManager/Models.swift b/Sources/ChromeTabManager/Models.swift
+index adfee7c..17b1e98 100644
+--- a/Sources/ChromeTabManager/Models.swift
++++ b/Sources/ChromeTabManager/Models.swift
+@@ -106,3 +106,54 @@ struct ScanTelemetry {
+     let errors: [String]
+     let durationSeconds: Double
+ }
++
++struct DomainGroup: Identifiable {
++    let id: String
++    let domain: String
++    let tabs: [TabInfo]
++
++    init(domain: String, tabs: [TabInfo]) {
++        self.id = domain
++        self.domain = domain
++        self.tabs = tabs
++    }
++}
++
++struct HealthMetrics {
++    let totalTabs: Int
++    let duplicateCount: Int
++    let domainCount: Int
++    let averageTabsPerWindow: Double
++    let oldestTabAge: TimeInterval
++    let newestTabAge: TimeInterval
++    let recommendedCleanupCount: Int
++
++    static func compute(from tabs: [TabInfo], duplicates: [DuplicateGroup]) -> HealthMetrics {
++        guard !tabs.isEmpty else {
++            return HealthMetrics(
++                totalTabs: 0,
++                duplicateCount: 0,
++                domainCount: 0,
++                averageTabsPerWindow: 0,
++                oldestTabAge: 0,
++                newestTabAge: 0,
++                recommendedCleanupCount: 0
++            )
++        }
++
++        let now = Date()
++        let uniqueDomains = Set(tabs.map { $0.domain })
++        let windowIds = Set(tabs.map { $0.windowId })
++        let ages = tabs.map { now.timeIntervalSince($0.openedAt) }
++
++        return HealthMetrics(
++            totalTabs: tabs.count,
++            duplicateCount: duplicates.reduce(0) { $0 + $1.wastedCount },
++            domainCount: uniqueDomains.count,
++            averageTabsPerWindow: Double(tabs.count) / Double(max(1, windowIds.count)),
++            oldestTabAge: ages.max() ?? 0,
++            newestTabAge: ages.min() ?? 0,
++            recommendedCleanupCount: duplicates.reduce(0) { $0 + $1.wastedCount }
++        )
++    }
++}
+diff --git a/Sources/ChromeTabManager/Preferences.swift b/Sources/ChromeTabManager/Preferences.swift
+index 05a88ef..855cdc1 100644
+--- a/Sources/ChromeTabManager/Preferences.swift
++++ b/Sources/ChromeTabManager/Preferences.swift
+@@ -16,10 +16,10 @@ struct PreferencesView: View {
+                     Label("Duplicates", systemImage: "doc.on.doc")
+                 }
+             
+-            if viewModel.licenseManager.isPro {
+-                ProPreferences(viewModel: viewModel)
++            if viewModel.licenseManager.isLicensed {
++                ProtectionPreferences(viewModel: viewModel)
+                     .tabItem {
+-                        Label("Pro", systemImage: "crown")
++                        Label("Protection", systemImage: "shield")
+                     }
+             }
+         }
+@@ -108,7 +108,7 @@ struct DuplicatePreferences: View {
+     }
+ }
+ 
+-struct ProPreferences: View {
++struct ProtectionPreferences: View {
+     @ObservedObject var viewModel: TabManagerViewModel
+     
+     var body: some View {
+diff --git a/Sources/ChromeTabManager/ViewModel.swift b/Sources/ChromeTabManager/ViewModel.swift
+index 75cb7de..26ec580 100644
+--- a/Sources/ChromeTabManager/ViewModel.swift
++++ b/Sources/ChromeTabManager/ViewModel.swift
+@@ -369,7 +369,7 @@ class TabManagerViewModel: ObservableObject {
+             
+             // Show warning if there were failures
+             if result.telemetry.windowsFailed > 0 {
+-                showToast(message: "Warning: \(result.telemetry.windowsFailed) windows failed to scan")
++                displayToast(message: "Warning: \(result.telemetry.windowsFailed) windows failed to scan")
+             }
+             
+             // Update timestamps before storing tabs
+@@ -652,7 +652,111 @@ class TabManagerViewModel: ObservableObject {
+     func dismissUndo() {
+         clearUndo()
+     }
+-    
++
++    // MARK: - Tab Opening
++
++    func openTab(windowId: Int, url: String) async -> Bool {
++        await ChromeController.shared.openTab(windowId: windowId, url: url)
++    }
++
++    func openTabs(_ tabs: [TabInfo]) async -> Int {
++        var opened = 0
++        for tab in tabs {
++            if await openTab(windowId: tab.windowId, url: tab.url) {
++                opened += 1
++            }
++        }
++        return opened
++    }
++
++    // MARK: - Domain Groups
++
++    var domainGroups: [DomainGroup] {
++        let grouped = Dictionary(grouping: tabs) { $0.domain }
++        return grouped.map { DomainGroup(domain: $0.key, tabs: $0.value) }
++            .sorted { $0.tabs.count > $1.tabs.count }
++    }
++
++    // MARK: - Pruning Candidates
++
++    var pruningCandidates: [TabInfo] {
++        tabs.filter { tab in
++            let age = Date().timeIntervalSince(tab.openedAt)
++            return age > 86400 && duplicateGroups.contains { $0.tabs.contains(tab) }
++        }
++    }
++
++    // MARK: - Domain Operations
++
++    func closeTabsInDomain(_ domain: String) async {
++        let domainTabs = tabs.filter { $0.domain == domain }
++        let byWindow = Dictionary(grouping: domainTabs) { $0.windowId }
++        var closed = 0
++        for (windowId, windowTabs) in byWindow {
++            let targets = windowTabs.map { (url: $0.url, title: $0.title) }
++            let result = await ChromeController.shared.closeTabsDeterministic(windowId: windowId, targets: targets)
++            closed += result.closed
++        }
++        displayToast(message: "Closed \(closed) tabs from \(domain)")
++        await scan()
++    }
++
++    // MARK: - URL Patterns
++
++    @Published var urlPatterns: [URLPattern] = []
++
++    func addURLPattern(_ pattern: URLPattern) {
++        URLPatternStore.shared.savePatterns(URLPatternStore.shared.loadPatterns() + [pattern])
++        urlPatterns = URLPatternStore.shared.loadPatterns()
++    }
++
++    func checkURLPatterns(for tab: TabInfo) -> URLPattern? {
++        urlPatterns.first { $0.matches(tab.url) }
++    }
++
++    // MARK: - Export Format
++
++    enum ExportFormat: String, CaseIterable {
++        case json = "JSON"
++        case html = "HTML"
++        case markdown = "Markdown"
++    }
++    @Published var exportFormat: ExportFormat = .json
++
++    // MARK: - Sessions
++
++    @Published var sessions: [Session] = []
++
++    // MARK: - Cleanup Rules
++
++    @Published var cleanupRules: [CleanupRule] = []
++
++    func loadCleanupRules() {
++        cleanupRules = []
++    }
++
++    // MARK: - Health Metrics
++
++    var healthMetrics: HealthMetrics? {
++        guard !tabs.isEmpty else { return nil }
++        return HealthMetrics.compute(from: tabs, duplicates: duplicateGroups)
++    }
++
++    // MARK: - Archive History
++
++    @Published var showArchiveHistory = false
++    @Published var closedTabHistory: ClosedTabHistoryStore?
++
++    // MARK: - Move Tabs
++
++    func moveTabsToWindow(tabIds: [String], targetWindowId: Int) async {
++
++    }
++
++    func moveTabsToNewWindow(tabIds: [String]) async {
++
++    }
++
+     func closeAllDuplicates(keepOldest: Bool = true) async {
+         let requested = duplicateGroups.reduce(0) { $0 + $1.wastedCount }
+         guard ensureCanClose(requestedCount: requested) else { return }
+@@ -706,25 +810,25 @@ class TabManagerViewModel: ObservableObject {
+             url: tab.url,
+             title: tab.title
+         ) else {
+-            showToast(message: "Tab no longer exists (may have been closed)")
++            displayToast(message: "Tab no longer exists (may have been closed)")
+             return
+         }
+-        
++
+         do {
+             try await ChromeController.shared.activateTab(
+                 windowId: tab.windowId,
+                 tabIndex: currentIndex
+             )
+-            showToast(message: "Switched to tab: \(tab.title.prefix(40))")
++            displayToast(message: "Switched to tab: \(tab.title.prefix(40))")
+         } catch {
+-            showToast(message: "Failed to activate tab: \(error.localizedDescription)")
++            displayToast(message: "Failed to activate tab: \(error.localizedDescription)")
+         }
+     }
+-    
+-    private func showToast(message: String) {
++
++    func displayToast(message: String) {
+         toastMessage = message
+         showToast = true
+-        
++
+         // Auto-hide after 3 seconds
+         Task {
+             try? await Task.sleep(nanoseconds: 3 * 1_000_000_000)
