@@ -42,7 +42,7 @@ struct PaywallView: View {
             VStack(spacing: 12) {
                 Button {
                     Task {
-                        let success = await licenseManager.purchaseLicense()
+                        let success = await licenseManager.purchasePro()
                         if success {
                             dismiss()
                         }

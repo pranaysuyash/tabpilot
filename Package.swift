@@ -8,6 +8,10 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "ChromeTabManager",
+            exclude: [
+                "Recovery",
+                "AppModels.swift"
+            ],
             swiftSettings: [.enableExperimentalFeature("StrictConcurrency")]
         ),
         .testTarget(

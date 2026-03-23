@@ -1,0 +1,82 @@
+== Validation started at 2026-03-23T15:21:33Z ==
++ swift build
+[0/1] Planning build
+Building for debugging...
+[0/3] Write swift-version--58304C5D6DBC2206.txt
+[2/4] Emitting module ChromeTabManager
+/Users/pranay/Projects/chrome-tab-manager-swift/Sources/ChromeTabManager/Protocols/ServiceProtocols.swift:35:27: warning: conformance of 'LicenseManager' to protocol 'LicenseProtocol' crosses into main actor-isolated code and can cause data races; this is an error in the Swift 6 language mode [#ConformanceIsolation]
+33 | }
+34 | 
+35 | extension LicenseManager: LicenseProtocol {}
+   |                           |- warning: conformance of 'LicenseManager' to protocol 'LicenseProtocol' crosses into main actor-isolated code and can cause data races; this is an error in the Swift 6 language mode [#ConformanceIsolation]
+   |                           |- note: isolate this conformance to the main actor with '@MainActor'
+   |                           `- note: turn data races into runtime errors with '@preconcurrency'
+36 | 
+
+/Users/pranay/Projects/chrome-tab-manager-swift/Sources/ChromeTabManager/Licensing.swift:18:9: note: main actor-isolated property 'isPro' cannot satisfy nonisolated requirement
+ 16 |     private let dailyCloseDateKey = "dailyCloseDate"
+ 17 | 
+ 18 |     var isPro: Bool { isLicensed }
+    |         `- note: main actor-isolated property 'isPro' cannot satisfy nonisolated requirement
+ 19 | 
+ 20 |     let freeDailyCloseLimit = 10
+
+[#ConformanceIsolation]: <https://docs.swift.org/compiler/documentation/diagnostics/conformance-isolation>
+Build complete! (0.72s)
++ swift test
+[0/1] Planning build
+Building for debugging...
+[0/7] /Users/pranay/Projects/chrome-tab-manager-swift/.build/arm64-apple-macosx/debug/ChromeTabManagerPackageTests.derived/runner.swift
+[0/7] Write sources
+[3/8] Write swift-version--58304C5D6DBC2206.txt
+[5/8] Compiling ChromeTabManagerTests ChromeTabManagerTests.swift
+[6/8] Emitting module ChromeTabManagerTests
+[7/10] Compiling ChromeTabManagerPackageTests runner.swift
+[8/10] Emitting module ChromeTabManagerPackageTests
+[8/10] Write Objects.LinkFileList
+[9/10] Linking ChromeTabManagerPackageTests
+Build complete! (10.61s)
+Test Suite 'All tests' started at 2026-03-23 20:51:46.199.
+Test Suite 'ChromeTabManagerPackageTests.xctest' started at 2026-03-23 20:51:46.200.
+Test Suite 'ChromeTabManagerTests' started at 2026-03-23 20:51:46.200.
+Test Case '-[ChromeTabManagerTests.ChromeTabManagerTests testAppleScriptEscape]' started.
+Test Case '-[ChromeTabManagerTests.ChromeTabManagerTests testAppleScriptEscape]' passed (0.002 seconds).
+Test Case '-[ChromeTabManagerTests.ChromeTabManagerTests testDuplicateGroupOldestNewest]' started.
+Test Case '-[ChromeTabManagerTests.ChromeTabManagerTests testDuplicateGroupOldestNewest]' passed (0.000 seconds).
+Test Case '-[ChromeTabManagerTests.ChromeTabManagerTests testDuplicateGroupWastedCount]' started.
+Test Case '-[ChromeTabManagerTests.ChromeTabManagerTests testDuplicateGroupWastedCount]' passed (0.000 seconds).
+Test Case '-[ChromeTabManagerTests.ChromeTabManagerTests testLightPersona]' started.
+Test Case '-[ChromeTabManagerTests.ChromeTabManagerTests testLightPersona]' passed (0.000 seconds).
+Test Case '-[ChromeTabManagerTests.ChromeTabManagerTests testNormalizedForComparison]' started.
+Test Case '-[ChromeTabManagerTests.ChromeTabManagerTests testNormalizedForComparison]' passed (0.001 seconds).
+Test Case '-[ChromeTabManagerTests.ChromeTabManagerTests testNormalizeURLPreservesCaseSensitivePath]' started.
+Test Case '-[ChromeTabManagerTests.ChromeTabManagerTests testNormalizeURLPreservesCaseSensitivePath]' passed (0.000 seconds).
+Test Case '-[ChromeTabManagerTests.ChromeTabManagerTests testNormalizeURLRemovesFragment]' started.
+Test Case '-[ChromeTabManagerTests.ChromeTabManagerTests testNormalizeURLRemovesFragment]' passed (0.000 seconds).
+Test Case '-[ChromeTabManagerTests.ChromeTabManagerTests testNormalizeURLRemovesTrackingParams]' started.
+Test Case '-[ChromeTabManagerTests.ChromeTabManagerTests testNormalizeURLRemovesTrackingParams]' passed (0.000 seconds).
+Test Case '-[ChromeTabManagerTests.ChromeTabManagerTests testNormalizeURLRemovesWWW]' started.
+Test Case '-[ChromeTabManagerTests.ChromeTabManagerTests testNormalizeURLRemovesWWW]' passed (0.000 seconds).
+Test Case '-[ChromeTabManagerTests.ChromeTabManagerTests testProtectedDomainMatching]' started.
+Test Case '-[ChromeTabManagerTests.ChromeTabManagerTests testProtectedDomainMatching]' passed (0.000 seconds).
+Test Case '-[ChromeTabManagerTests.ChromeTabManagerTests testProtectedDomainSubdomainMatching]' started.
+Test Case '-[ChromeTabManagerTests.ChromeTabManagerTests testProtectedDomainSubdomainMatching]' passed (0.000 seconds).
+Test Case '-[ChromeTabManagerTests.ChromeTabManagerTests testStandardPersona]' started.
+Test Case '-[ChromeTabManagerTests.ChromeTabManagerTests testStandardPersona]' passed (0.000 seconds).
+Test Case '-[ChromeTabManagerTests.ChromeTabManagerTests testSuperUserPersona]' started.
+Test Case '-[ChromeTabManagerTests.ChromeTabManagerTests testSuperUserPersona]' passed (0.001 seconds).
+Test Case '-[ChromeTabManagerTests.ChromeTabManagerTests testViewModeDescriptions]' started.
+Test Case '-[ChromeTabManagerTests.ChromeTabManagerTests testViewModeDescriptions]' passed (0.000 seconds).
+Test Case '-[ChromeTabManagerTests.ChromeTabManagerTests testViewModeIcons]' started.
+Test Case '-[ChromeTabManagerTests.ChromeTabManagerTests testViewModeIcons]' passed (0.000 seconds).
+Test Suite 'ChromeTabManagerTests' passed at 2026-03-23 20:51:46.207.
+	 Executed 15 tests, with 0 failures (0 unexpected) in 0.005 (0.007) seconds
+Test Suite 'ChromeTabManagerPackageTests.xctest' passed at 2026-03-23 20:51:46.207.
+	 Executed 15 tests, with 0 failures (0 unexpected) in 0.005 (0.007) seconds
+Test Suite 'All tests' passed at 2026-03-23 20:51:46.207.
+	 Executed 15 tests, with 0 failures (0 unexpected) in 0.005 (0.008) seconds
+◇ Test run started.
+↳ Testing Library Version: 1501
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.
+== Validation PASS ==

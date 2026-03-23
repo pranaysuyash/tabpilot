@@ -7,13 +7,37 @@ enum SecurityUtils {
     
     // MARK: - URL Validation
     
+    /// Validate and clean a URL string. Returns nil for unsafe schemes.
+    static func sanitizeURL(_ string: String) -> String? {
+        let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, let url = URL(string: trimmed), isAllowedScheme(url) else { return nil }
+        return trimmed
+    }
+    
+    /// Strip control characters and limit title to 500 chars.
+    static func sanitizeTitle(_ title: String) -> String {
+        let stripped = title.unicodeScalars.filter { !CharacterSet.controlCharacters.contains($0) }
+        return String(String.UnicodeScalarView(stripped).prefix(500))
+    }
+    
+    /// Only allow http, https, chrome schemes.
+    static func isAllowedScheme(_ url: URL) -> Bool {
+        guard let scheme = url.scheme?.lowercased() else { return false }
+        return ["http", "https", "chrome"].contains(scheme)
+    }
+    
+    /// Check for AppleScript injection patterns.
+    static func validateAppleScriptOutput(_ string: String) -> Bool {
+        let dangerous = ["do shell script", "tell application", "osascript", "<script", "javascript:"]
+        let lower = string.lowercased()
+        return !dangerous.contains { lower.contains($0) }
+    }
+    
     /// Validate that a URL string is safe to open in Chrome.
     /// Rejects file://, javascript:, and data: URLs.
     static func isSafeURL(_ urlString: String) -> Bool {
         guard let url = URL(string: urlString) else { return false }
         let scheme = url.scheme?.lowercased() ?? ""
-        
-        // Only allow http and https
         return scheme == "http" || scheme == "https"
     }
     
@@ -56,8 +80,6 @@ enum SecurityUtils {
         let sanitized = sanitizeDomain(domain)
         guard !sanitized.isEmpty else { return false }
         
-        // Basic: must contain at least one dot (e.g., google.com)
-        // or be a valid localhost
         if sanitized == "localhost" { return true }
         
         let parts = sanitized.components(separatedBy: ".")
@@ -69,7 +91,6 @@ enum SecurityUtils {
     /// Validate session name is safe to save to disk.
     static func sanitizeSessionName(_ name: String) -> String {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        // Replace filesystem unsafe chars
         return trimmed.replacingOccurrences(of: "/", with: "-")
                       .replacingOccurrences(of: "\\", with: "-")
                       .replacingOccurrences(of: ":", with: "-")

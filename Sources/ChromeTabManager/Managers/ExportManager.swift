@@ -91,14 +91,14 @@ struct ExportManager {
     
     private static func exportJSON(tabs: [TabInfo]) -> String {
         let exportData = tabs.map { ["title": $0.title, "url": $0.url, "domain": $0.domain] }
-        guard let data = try? JSONSerialization.data(withJSONObject: exportData, options: [.prettyPrinted]),
+        guard let data = try? JSONSerialization.data(withJSONObject: exportData, options: [.prettyPrinted, .withoutEscapingSlashes]),
               let str = String(data: data, encoding: .utf8) else { return "[]" }
         return str
     }
     
     private static func exportDuplicatesJSON(groups: [DuplicateGroup]) -> String {
         let exportData = groups.map { ["url": $0.displayUrl, "count": $0.tabs.count] as [String : Any] }
-        guard let data = try? JSONSerialization.data(withJSONObject: exportData, options: [.prettyPrinted]),
+        guard let data = try? JSONSerialization.data(withJSONObject: exportData, options: [.prettyPrinted, .withoutEscapingSlashes]),
               let str = String(data: data, encoding: .utf8) else { return "[]" }
         return str
     }
