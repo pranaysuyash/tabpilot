@@ -8,18 +8,20 @@ actor BackupManager {
     private let schemaVersion = "1.0"
     
     private nonisolated var backupDirectory: URL {
+        let fileManager = FileManager.default
         let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         return appSupport.appendingPathComponent("ChromeTabManager/Backups", isDirectory: true)
     }
     
-    init() {
-        createBackupDirectoryIfNeeded()
-    }
-    
-    private func createBackupDirectoryIfNeeded() {
+    private nonisolated func createBackupDirectoryIfNeeded() {
+        let fileManager = FileManager.default
         if !fileManager.fileExists(atPath: backupDirectory.path) {
             try? fileManager.createDirectory(at: backupDirectory, withIntermediateDirectories: true)
         }
+    }
+    
+    init() {
+        createBackupDirectoryIfNeeded()
     }
     
     struct Backup: Identifiable, Codable, Sendable {

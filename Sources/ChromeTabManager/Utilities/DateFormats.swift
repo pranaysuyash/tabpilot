@@ -28,4 +28,16 @@ enum DateFormats {
         formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
         return formatter
     }()
+
+    static let isoDateOnly: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
+
+    static let fileSafeDateTime: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd-HHmmss"
+        return formatter
+    }()
 }

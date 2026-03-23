@@ -1,5 +1,9 @@
 import SwiftUI
 import Combine
+import AppKit
+#if canImport(WidgetKit)
+import WidgetKit
+#endif
 
 @MainActor
 class TabManagerViewModel: ObservableObject {
@@ -25,6 +29,8 @@ class TabManagerViewModel: ObservableObject {
     @Published var toastMessage: String?
     @Published var showToast = false
     @Published var viewMode: DuplicateViewMode = .overall
+    @Published var importPreviewTabs: [ImportTab] = []
+    @Published var isImportResultPresented = false
     
     // Licensing
     @Published var licenseManager = LicenseManager.shared
@@ -65,6 +71,7 @@ class TabManagerViewModel: ObservableObject {
     @Published var protectedDomains: [String] = ["mail.google.com", "calendar.google.com"] {
         didSet { saveProtectedDomains() }
     }
+    private let sharedDefaults = UserDefaults(suiteName: "group.com.pranay.chrometabmanager")
     private let protectedDomainsKey = "protectedDomains"
     
     init(
@@ -81,6 +88,7 @@ class TabManagerViewModel: ObservableObject {
         setupSearchDebounce()
         loadTimestamps()
         loadProtectedDomains()
+        loadRecentArchives()
         // Start scheduled auto-cleanup (no-op if isEnabled == false)
         Task { @MainActor in AutoCleanupManager.shared.setup() }
     }
@@ -439,6 +447,7 @@ class TabManagerViewModel: ObservableObject {
             self.buildWindows()
             self.findDuplicates()
             self.instances = await ChromeController.shared.getInstances(knownTabCount: self.tabs.count)
+            self.updateWidgetData()
             
             // AUTO-DETECT PERSONA
             self.userAnalysis = analyzeUser(tabs: self.tabs, duplicates: self.duplicateGroups)
@@ -548,7 +557,10 @@ class TabManagerViewModel: ObservableObject {
         didSet { invalidateDuplicateCache(); findDuplicates() }
     }
     @AppStorage("maxDuplicatesDisplay") var maxDuplicatesDisplay: Int = 100
+    @AppStorage(DefaultsKeys.defaultExportFormat) var defaultExportFormatRaw: String = ExportFormat.json.rawValue
+    @AppStorage(DefaultsKeys.archiveLocationPath) var archiveLocationPath: String = ""
     @Published var newProtectedDomain: String = ""
+    @Published var recentArchives: [URL] = []
     
     struct ReviewPlanItem: Identifiable {
         let id = UUID()
@@ -798,8 +810,21 @@ class TabManagerViewModel: ObservableObject {
         case json = "JSON"
         case html = "HTML"
         case markdown = "Markdown"
+
+        var fileExtension: String {
+            switch self {
+            case .json: return "json"
+            case .html: return "html"
+            case .markdown: return "md"
+            }
+        }
     }
     @Published var exportFormat: ExportFormat = .json
+
+    var defaultExportFormat: ExportFormat {
+        get { ExportFormat(rawValue: defaultExportFormatRaw) ?? .json }
+        set { defaultExportFormatRaw = newValue.rawValue }
+    }
 
     func exportCurrentTabs(format: ExportManager.ExportFormat) -> String {
         exportUseCase.export(tabs: tabs, format: format)
@@ -807,6 +832,127 @@ class TabManagerViewModel: ObservableObject {
 
     func exportCurrentDuplicates(format: ExportManager.ExportFormat) -> String {
         exportUseCase.exportDuplicates(groups: duplicateGroups, format: format)
+    }
+
+    func exportContent(for tabs: [TabInfo], format: ExportFormat) -> String {
+        switch format {
+        case .markdown:
+            return ExportManager.export(tabs: tabs, format: .markdown)
+        case .html:
+            return bookmarksHTML(for: tabs, title: "Chrome Tab Manager Export")
+        case .json:
+            return tabsJSON(for: tabs)
+        }
+    }
+
+    func exportTabs(_ tabs: [TabInfo], format: ExportFormat, to url: URL) async {
+        do {
+            let content = exportContent(for: tabs, format: format)
+            try content.write(to: url, atomically: true, encoding: .utf8)
+            displayToast(message: "Exported \(tabs.count) tabs")
+        } catch {
+            let userError = UserFacingError.scanFailed(reason: "Export failed: \(error.localizedDescription)")
+            errorMessage = userError.errorDescription
+            ErrorPresenter.shared.present(userError)
+        }
+    }
+
+    func exportSelectedTabs(format: ExportFormat) {
+        let selected = tabs.filter { selectedTabIds.contains($0.id) }
+        guard !selected.isEmpty else {
+            displayToast(message: "Select tabs to export first")
+            return
+        }
+
+        let panel = NSSavePanel()
+        panel.canCreateDirectories = true
+        panel.allowedContentTypes = [.plainText]
+        panel.nameFieldStringValue = "ChromeTabs-\(DateFormats.isoDateOnly.string(from: Date())).\(format.fileExtension)"
+        panel.begin { [weak self] response in
+            guard response == .OK, let url = panel.url else { return }
+            Task { await self?.exportTabs(selected, format: format, to: url) }
+        }
+    }
+
+    func archiveTabs(_ tabs: [TabInfo], fileName: String?, format: ExportFormat, append: Bool) async {
+        guard !tabs.isEmpty else {
+            displayToast(message: "No tabs to archive")
+            return
+        }
+
+        let baseName = (fileName?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false)
+            ? fileName!.trimmingCharacters(in: .whitespacesAndNewlines)
+            : "archive-\(DateFormats.fileSafeDateTime.string(from: Date()))"
+        let archiveURL = archiveDirectoryURL().appendingPathComponent("\(baseName).\(format.fileExtension)")
+
+        do {
+            try FileManager.default.createDirectory(at: archiveDirectoryURL(), withIntermediateDirectories: true)
+            let content = exportContent(for: tabs, format: format)
+            if append, FileManager.default.fileExists(atPath: archiveURL.path) {
+                let current = (try? String(contentsOf: archiveURL, encoding: .utf8)) ?? ""
+                try (current + "\n\n" + content).write(to: archiveURL, atomically: true, encoding: .utf8)
+            } else {
+                try content.write(to: archiveURL, atomically: true, encoding: .utf8)
+            }
+            addRecentArchive(archiveURL)
+            displayToast(message: "Archived \(tabs.count) tabs")
+        } catch {
+            let userError = UserFacingError.archiveFailed
+            errorMessage = userError.errorDescription
+            ErrorPresenter.shared.present(userError)
+        }
+    }
+
+    func archiveSelectedTabs(fileName: String?, format: ExportFormat, append: Bool) {
+        let selected = tabs.filter { selectedTabIds.contains($0.id) }
+        Task { await archiveTabs(selected, fileName: fileName, format: format, append: append) }
+    }
+
+    func importTabs(from url: URL) async -> [ImportTab] {
+        do {
+            let data = try Data(contentsOf: url)
+            let lowerName = url.lastPathComponent.lowercased()
+            if lowerName.hasSuffix(".json"),
+               let parsed = parseJSONTabs(data) {
+                return parsed
+            }
+
+            if let text = String(data: data, encoding: .utf8) {
+                if text.contains("<!DOCTYPE NETSCAPE-Bookmark-file-1>") || lowerName.hasSuffix(".html") || lowerName.hasSuffix(".htm") {
+                    return parseBookmarksHTML(text)
+                }
+                if let parsed = parseJSONStringTabs(text) {
+                    return parsed
+                }
+            }
+
+            return []
+        } catch {
+            let userError = UserFacingError.scanFailed(reason: "Import failed: \(error.localizedDescription)")
+            errorMessage = userError.errorDescription
+            ErrorPresenter.shared.present(userError)
+            return []
+        }
+    }
+
+    func openImportedTabs(_ importedTabs: [ImportTab]) async {
+        guard !importedTabs.isEmpty else { return }
+        guard await ChromeController.shared.isChromeRunning() else {
+            let userError = UserFacingError.chromeNotRunning
+            errorMessage = userError.errorDescription
+            ErrorPresenter.shared.present(userError)
+            return
+        }
+
+        let targetWindow = windows.first?.windowId ?? 1
+        var opened = 0
+        for tab in importedTabs {
+            if await ChromeController.shared.openTab(windowId: targetWindow, url: tab.url) {
+                opened += 1
+            }
+        }
+        displayToast(message: "Opened \(opened) imported tabs")
+        await scan()
     }
 
     // MARK: - Sessions
@@ -1045,6 +1191,200 @@ class TabManagerViewModel: ObservableObject {
         } else {
             selectedTabIds.insert(tab.id)
         }
+    }
+
+    // MARK: - Export/Import Helpers
+
+    func archiveDirectoryURL() -> URL {
+        if !archiveLocationPath.isEmpty {
+            return URL(fileURLWithPath: archiveLocationPath, isDirectory: true)
+        }
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        return docs.appendingPathComponent("ChromeTabManager/Archives", isDirectory: true)
+    }
+
+    func chooseArchiveDirectory() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.canCreateDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.prompt = "Choose"
+        panel.begin { [weak self] response in
+            guard response == .OK, let url = panel.url else { return }
+            self?.archiveLocationPath = url.path
+        }
+    }
+
+    func openArchiveDirectoryInFinder() {
+        NSWorkspace.shared.open(archiveDirectoryURL())
+    }
+
+    func openArchiveFile(_ url: URL) {
+        NSWorkspace.shared.open(url)
+    }
+
+    func deleteArchiveFile(_ url: URL) {
+        do {
+            try FileManager.default.removeItem(at: url)
+            recentArchives.removeAll { $0 == url }
+            saveRecentArchives()
+        } catch {
+            displayToast(message: "Failed to delete archive")
+        }
+    }
+
+    private func loadRecentArchives() {
+        let paths = UserDefaults.standard.stringArray(forKey: DefaultsKeys.recentArchivePaths) ?? []
+        recentArchives = paths.map { URL(fileURLWithPath: $0) }.filter { FileManager.default.fileExists(atPath: $0.path) }
+    }
+
+    private func saveRecentArchives() {
+        let paths = recentArchives.map(\.path)
+        UserDefaults.standard.set(paths, forKey: DefaultsKeys.recentArchivePaths)
+    }
+
+    private func addRecentArchive(_ url: URL) {
+        recentArchives.removeAll { $0 == url }
+        recentArchives.insert(url, at: 0)
+        if recentArchives.count > 20 {
+            recentArchives = Array(recentArchives.prefix(20))
+        }
+        saveRecentArchives()
+    }
+
+    private func tabsJSON(for tabs: [TabInfo]) -> String {
+        struct ExportContainer: Codable {
+            struct ExportTab: Codable {
+                let id: String
+                let title: String
+                let url: String
+                let domain: String
+                let openedAt: Date
+                let windowId: Int
+                let tabIndex: Int
+            }
+            let exportDate: Date
+            let totalTabs: Int
+            let tabs: [ExportTab]
+            let version: String
+            let app: String
+        }
+
+        let payload = ExportContainer(
+            exportDate: Date(),
+            totalTabs: tabs.count,
+            tabs: tabs.map {
+                .init(
+                    id: $0.id,
+                    title: $0.title,
+                    url: $0.url,
+                    domain: $0.domain,
+                    openedAt: $0.openedAt,
+                    windowId: $0.windowId,
+                    tabIndex: $0.tabIndex
+                )
+            },
+            version: "1.0",
+            app: "Chrome Tab Manager"
+        )
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        encoder.dateEncodingStrategy = .iso8601
+        guard let data = try? encoder.encode(payload),
+              let text = String(data: data, encoding: .utf8) else {
+            return "{}"
+        }
+        return text
+    }
+
+    private func bookmarksHTML(for tabs: [TabInfo], title: String) -> String {
+        let timestamp = Int(Date().timeIntervalSince1970)
+        var lines: [String] = [
+            "<!DOCTYPE NETSCAPE-Bookmark-file-1>",
+            "<META HTTP-EQUIV=\"Content-Type\" CONTENT=\"text/html; charset=UTF-8\">",
+            "<TITLE>Bookmarks</TITLE>",
+            "<H1>Bookmarks</H1>",
+            "<DL><p>",
+            "    <DT><H3 ADD_DATE=\"\(timestamp)\">\(title)</H3>",
+            "    <DL><p>"
+        ]
+        for tab in tabs {
+            let safeTitle = tab.title.replacingOccurrences(of: "&", with: "&amp;")
+                .replacingOccurrences(of: "<", with: "&lt;")
+                .replacingOccurrences(of: ">", with: "&gt;")
+            lines.append("        <DT><A HREF=\"\(tab.url)\" ADD_DATE=\"\(timestamp)\">\(safeTitle)</A>")
+        }
+        lines += ["    </DL><p>", "</DL><p>"]
+        return lines.joined(separator: "\n")
+    }
+
+    private func parseBookmarksHTML(_ text: String) -> [ImportTab] {
+        let pattern = #"<A[^>]*HREF="([^"]+)"[^>]*>(.*?)</A>"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else {
+            return []
+        }
+        let source = text as NSString
+        let range = NSRange(location: 0, length: source.length)
+        let matches = regex.matches(in: text, options: [], range: range)
+        return matches.compactMap { match in
+            guard match.numberOfRanges >= 3 else { return nil }
+            let url = source.substring(with: match.range(at: 1))
+            let title = decodeHTMLEntities(source.substring(with: match.range(at: 2)))
+            guard URL(string: url) != nil else { return nil }
+            return ImportTab(title: title, url: url, source: "bookmarks_html")
+        }
+    }
+
+    private func parseJSONTabs(_ data: Data) -> [ImportTab]? {
+        if let object = try? JSONSerialization.jsonObject(with: data, options: []),
+           let dict = object as? [String: Any],
+           let tabsArray = dict["tabs"] as? [[String: Any]] {
+            return tabsArray.compactMap { item in
+                guard let url = item["url"] as? String else { return nil }
+                let title = (item["title"] as? String) ?? "Untitled"
+                guard URL(string: url) != nil else { return nil }
+                return ImportTab(title: title, url: url, source: "json")
+            }
+        }
+        return nil
+    }
+
+    private func parseJSONStringTabs(_ text: String) -> [ImportTab]? {
+        guard let data = text.data(using: .utf8) else { return nil }
+        if let tabs = parseJSONTabs(data) {
+            return tabs
+        }
+        if let object = try? JSONSerialization.jsonObject(with: data, options: []),
+           let array = object as? [[String: Any]] {
+            return array.compactMap { item in
+                guard let url = item["url"] as? String else { return nil }
+                let title = (item["title"] as? String) ?? "Untitled"
+                guard URL(string: url) != nil else { return nil }
+                return ImportTab(title: title, url: url, source: "json")
+            }
+        }
+        return nil
+    }
+
+    private func decodeHTMLEntities(_ input: String) -> String {
+        input
+            .replacingOccurrences(of: "&amp;", with: "&")
+            .replacingOccurrences(of: "&lt;", with: "<")
+            .replacingOccurrences(of: "&gt;", with: ">")
+            .replacingOccurrences(of: "&quot;", with: "\"")
+            .replacingOccurrences(of: "&#39;", with: "'")
+    }
+
+    private func updateWidgetData() {
+        sharedDefaults?.set(tabs.count, forKey: "widget.totalTabs")
+        sharedDefaults?.set(duplicateGroups.count, forKey: "widget.duplicateGroups")
+        sharedDefaults?.set(duplicateGroups.reduce(0) { $0 + $1.wastedCount }, forKey: "widget.wastedTabs")
+        sharedDefaults?.set(windows.count, forKey: "widget.windows")
+        sharedDefaults?.set(Date().timeIntervalSince1970, forKey: "widget.lastUpdated")
+#if canImport(WidgetKit)
+        WidgetCenter.shared.reloadAllTimelines()
+#endif
     }
     
     private func buildWindows() {

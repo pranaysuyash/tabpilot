@@ -1,7 +1,7 @@
 import Foundation
 
-protocol Repository {
-    associatedtype Entity
+protocol Repository: Actor {
+    associatedtype Entity: Sendable
 
     func getAll() async throws -> [Entity]
     func get(byId id: String) async throws -> Entity?
@@ -37,7 +37,7 @@ actor UserDefaultsRepository<Entity: Codable & Identifiable & Sendable>: Reposit
     init(defaults: UserDefaults = .standard, key: String) {
         self.defaults = defaults
         self.key = key
-        loadFromDefaults()
+        self.storage = Self.loadFromDefaults(defaults: defaults, key: key)
     }
 
     func getAll() async throws -> [Entity] {
@@ -58,11 +58,12 @@ actor UserDefaultsRepository<Entity: Codable & Identifiable & Sendable>: Reposit
         try persist()
     }
 
-    private func loadFromDefaults() {
-        guard let data = defaults.data(forKey: key) else { return }
-        if let decoded = try? JSONDecoder().decode([String: Entity].self, from: data) {
-            storage = decoded
+    private nonisolated static func loadFromDefaults(defaults: UserDefaults, key: String) -> [String: Entity] {
+        guard let data = defaults.data(forKey: key),
+              let decoded = try? JSONDecoder().decode([String: Entity].self, from: data) else {
+            return [:]
         }
+        return decoded
     }
 
     private func persist() throws {
@@ -77,7 +78,7 @@ actor FileRepository<Entity: Codable & Identifiable & Sendable>: Repository wher
 
     init(fileURL: URL) {
         self.fileURL = fileURL
-        loadFromFile()
+        self.storage = Self.loadFromFile(fileURL: fileURL)
     }
 
     func getAll() async throws -> [Entity] {
@@ -98,11 +99,12 @@ actor FileRepository<Entity: Codable & Identifiable & Sendable>: Repository wher
         try persist()
     }
 
-    private func loadFromFile() {
-        guard let data = try? Data(contentsOf: fileURL) else { return }
-        if let decoded = try? JSONDecoder().decode([String: Entity].self, from: data) {
-            storage = decoded
+    private nonisolated static func loadFromFile(fileURL: URL) -> [String: Entity] {
+        guard let data = try? Data(contentsOf: fileURL),
+              let decoded = try? JSONDecoder().decode([String: Entity].self, from: data) else {
+            return [:]
         }
+        return decoded
     }
 
     private func persist() throws {
