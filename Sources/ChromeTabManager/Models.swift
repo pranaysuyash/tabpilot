@@ -120,6 +120,20 @@ struct DomainGroup: Identifiable {
     }
 }
 
+struct ImportTab: Identifiable, Hashable {
+    let id: String
+    let title: String
+    let url: String
+    let source: String
+
+    init(title: String, url: String, source: String = "import") {
+        self.id = UUID().uuidString
+        self.title = title.isEmpty ? "Untitled" : title
+        self.url = url
+        self.source = source
+    }
+}
+
 struct HealthMetrics {
     let totalTabs: Int
     let duplicateCount: Int

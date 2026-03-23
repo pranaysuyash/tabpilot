@@ -18,6 +18,9 @@ enum DefaultsKeys {
     static let ignoreTrackingParams = "ignoreTrackingParams"
     static let stripQueryParams = "stripQueryParams"
     static let maxDuplicatesDisplay = "maxDuplicatesDisplay"
+    static let defaultExportFormat = "defaultExportFormat"
+    static let archiveLocationPath = "archiveLocationPath"
+    static let recentArchivePaths = "recentArchivePaths"
     
     // MARK: - Statistics Store
     static let usageStatistics = "usageStatistics"

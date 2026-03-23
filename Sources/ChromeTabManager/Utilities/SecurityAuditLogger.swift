@@ -30,7 +30,6 @@ actor SecurityAuditLogger {
         self.fileURL = fileURL
         self.encoder = JSONEncoder()
         self.encoder.dateEncodingStrategy = .iso8601
-        prepareStore()
     }
 
     func log(

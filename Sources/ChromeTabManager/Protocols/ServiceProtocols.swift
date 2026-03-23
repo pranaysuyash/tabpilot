@@ -28,6 +28,7 @@ protocol TimestampStoreProtocol {
 }
 
 /// Protocol for license checking.
+@MainActor
 protocol LicenseProtocol {
     var isPro: Bool { get }
 }
