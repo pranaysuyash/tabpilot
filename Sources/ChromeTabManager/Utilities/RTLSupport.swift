@@ -85,3 +85,44 @@ extension View {
         modifier(ForceLayoutDirection(direction: direction))
     }
 }
+
+// MARK: - RTLAwareView
+
+/// Example reusable row that respects layout direction and flips directional iconography for RTL locales.
+struct RTLAwareView: View {
+    @Environment(\.layoutDirection) private var layoutDirection
+    let text: LocalizedStringKey
+
+    init(text: LocalizedStringKey = "Content") {
+        self.text = text
+    }
+
+    var body: some View {
+        HStack {
+            Image(systemName: "arrow.right")
+                .rotationEffect(layoutDirection == .rightToLeft ? .degrees(180) : .zero)
+
+            Text(text)
+
+            Spacer()
+        }
+        .padding(.leading)
+    }
+}
+
+/// A proportional spacer that can be used where direction-aware layouts need percentage spacing.
+struct ProportionalDirectionalSpacer: View {
+    let fraction: CGFloat
+
+    init(fraction: CGFloat = 0.1) {
+        self.fraction = min(max(fraction, 0), 1)
+    }
+
+    var body: some View {
+        GeometryReader { geometry in
+            Color.clear
+                .frame(width: geometry.size.width * fraction)
+        }
+        .frame(height: 0)
+    }
+}

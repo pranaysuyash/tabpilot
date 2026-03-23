@@ -3,6 +3,7 @@ import Foundation
 enum RetryError: LocalizedError {
     case maxAttemptsExceeded(attempts: Int, lastError: Error)
     case cancelled
+    case timedOut(seconds: Double)
 
     var errorDescription: String? {
         switch self {
@@ -10,7 +11,24 @@ enum RetryError: LocalizedError {
             return "Failed after \(attempts) attempts: \(lastError.localizedDescription)"
         case .cancelled:
             return "Retry operation was cancelled"
+        case .timedOut(let seconds):
+            return "Operation timed out after \(Int(seconds))s"
         }
+    }
+}
+
+/// Runs `operation` and throws `RetryError.timedOut` if it doesn't complete within `seconds`.
+func withTimeout<T: Sendable>(seconds: Double, operation: @escaping @Sendable () async throws -> T) async throws -> T {
+    try await withThrowingTaskGroup(of: T.self) { group in
+        group.addTask { try await operation() }
+        group.addTask {
+            try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+            throw RetryError.timedOut(seconds: seconds)
+        }
+        // Return the first result (success or first thrown error)
+        let result = try await group.next()!
+        group.cancelAll()
+        return result
     }
 }
 

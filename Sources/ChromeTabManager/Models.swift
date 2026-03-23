@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 struct TabInfo: Identifiable, Hashable {
     let id: String
@@ -127,6 +128,25 @@ struct HealthMetrics {
     let oldestTabAge: TimeInterval
     let newestTabAge: TimeInterval
     let recommendedCleanupCount: Int
+
+    /// 0-100 health score. Higher = healthier (fewer duplicates, reasonable count)
+    var score: Int {
+        guard totalTabs > 0 else { return 100 }
+        let duplicateRatio = Double(duplicateCount) / Double(totalTabs)
+        let memoryPressure = min(1.0, Double(totalTabs) / 500.0) // 500 tabs = max pressure
+        let windowSpread = min(1.0, averageTabsPerWindow / 50.0) // 50 avg = max spread
+        let raw = 100.0 - (duplicateRatio * 50.0) - (memoryPressure * 30.0) - (windowSpread * 20.0)
+        return max(0, min(100, Int(raw)))
+    }
+
+    /// Traffic-light color based on score
+    var statusColor: Color {
+        switch score {
+        case 80...: return .green
+        case 50...: return .orange
+        default:    return .red
+        }
+    }
 
     static func compute(from tabs: [TabInfo], duplicates: [DuplicateGroup]) -> HealthMetrics {
         guard !tabs.isEmpty else {

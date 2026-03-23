@@ -51,7 +51,11 @@ actor ChromeController {
         end tell
         """
         
-        let result = try await runAppleScript(script, timeout: 10)
+        let config = RetryConfig(maxAttempts: 3, baseDelay: 0.5, maxDelay: 3.0)
+        
+        let result = try await AsyncRetryHandler.retry(config: config) {
+            try await self.runAppleScript(script, timeout: 10)
+        }
         return Int(result.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0
     }
     
@@ -239,8 +243,12 @@ actor ChromeController {
         end tell
         """
         
+        let config = RetryConfig(maxAttempts: 3, baseDelay: 0.5, maxDelay: 3.0)
+        
         do {
-            let result = try await runAppleScript(script, timeout: 10)
+            let result = try await AsyncRetryHandler.retry(config: config) {
+                try await self.runAppleScript(script, timeout: 10)
+            }
             let lines = result.components(separatedBy: ", ")
             var indices: [(Int, String, String)] = []
             
