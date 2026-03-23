@@ -1,7 +1,11 @@
 import SwiftUI
 
 struct ContentView: View {
-    @StateObject private var viewModel = TabManagerViewModel()
+    @StateObject private var viewModel: TabManagerViewModel
+
+    init(viewModel: TabManagerViewModel = TabViewModelBuilder().build()) {
+        _viewModel = StateObject(wrappedValue: viewModel)
+    }
     
     var body: some View {
         NavigationSplitView {

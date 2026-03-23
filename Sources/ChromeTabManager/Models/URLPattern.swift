@@ -64,7 +64,7 @@ final class URLPatternStore: @unchecked Sendable {
             let patterns = try JSONDecoder().decode([URLPattern].self, from: data)
             return patterns.isEmpty ? defaultPatterns() : patterns
         } catch {
-            print("URLPatternStore: Failed to decode patterns: \(error.localizedDescription)")
+            SecureLogger.error("URLPatternStore: Failed to decode patterns: \(error.localizedDescription)")
             return defaultPatterns()
         }
     }
@@ -77,7 +77,7 @@ final class URLPatternStore: @unchecked Sendable {
             let data = try JSONEncoder().encode(patterns)
             userDefaults.set(data, forKey: patternsKey)
         } catch {
-            print("URLPatternStore: Failed to encode patterns: \(error.localizedDescription)")
+            SecureLogger.error("URLPatternStore: Failed to encode patterns: \(error.localizedDescription)")
         }
     }
 

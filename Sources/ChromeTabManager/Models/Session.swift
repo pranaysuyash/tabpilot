@@ -108,6 +108,19 @@ class SessionStore: ObservableObject {
             persist()
         }
     }
+
+    // MARK: - Import Helpers
+
+    func replaceAll(_ newSessions: [Session]) {
+        sessions = newSessions
+        persist()
+    }
+
+    func appendSessions(_ newSessions: [Session]) {
+        guard !newSessions.isEmpty else { return }
+        sessions.append(contentsOf: newSessions)
+        persist()
+    }
     
     // MARK: - Persistence
     
@@ -117,7 +130,7 @@ class SessionStore: ObservableObject {
                 sessions = try JSONDecoder().decode([Session].self, from: data)
             }
         } catch {
-            print("SessionStore: load failed: \(error)")
+            SecureLogger.error("SessionStore: load failed: \(error.localizedDescription)")
             sessions = []
         }
     }
@@ -127,7 +140,7 @@ class SessionStore: ObservableObject {
             let data = try JSONEncoder().encode(sessions)
             UserDefaults.standard.set(data, forKey: storageKey)
         } catch {
-            print("SessionStore: persist failed: \(error)")
+            SecureLogger.error("SessionStore: persist failed: \(error.localizedDescription)")
         }
     }
 }

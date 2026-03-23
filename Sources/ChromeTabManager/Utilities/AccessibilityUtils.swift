@@ -96,3 +96,41 @@ extension View {
         modifier(ReduceMotionToggle(animation: animation, reducedAnimation: reducedAnimation))
     }
 }
+
+// MARK: - High Contrast Support
+
+struct HighContrastView: View {
+    @Environment(\.colorSchemeContrast) var contrast
+    let text: LocalizedStringKey
+
+    init(text: LocalizedStringKey = "Content") {
+        self.text = text
+    }
+
+    var body: some View {
+        Text(text)
+            .foregroundColor(contrast == .increased ? .black : .primary)
+            .padding()
+            .background(contrast == .increased ? Color.white : Color.gray.opacity(0.1))
+            .overlay(
+                RoundedRectangle(cornerRadius: 4)
+                    .stroke(contrast == .increased ? Color.black : Color.clear, lineWidth: 2)
+            )
+    }
+}
+
+struct HighContrastAdaptive: ViewModifier {
+    @Environment(\.colorSchemeContrast) private var contrast
+
+    func body(content: Content) -> some View {
+        content
+            .foregroundStyle(contrast == .increased ? Color.primary : Color.primary)
+            .background(contrast == .increased ? Color(NSColor.textBackgroundColor) : Color.clear)
+    }
+}
+
+extension View {
+    func highContrastAdaptive() -> some View {
+        modifier(HighContrastAdaptive())
+    }
+}

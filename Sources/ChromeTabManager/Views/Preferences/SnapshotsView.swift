@@ -23,16 +23,23 @@ struct SnapshotsView: View {
             // Undo snapshot
             if viewModel.canUndo {
                 GroupBox("Recent Close (Undo Available)") {
-                    HStack {
-                        Text(viewModel.undoMessage)
-                            .font(.subheadline)
-                        Spacer()
-                        Button {
-                            Task { await viewModel.undoLastClose() }
-                        } label: {
-                            Label("Undo", systemImage: "arrow.uturn.backward")
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text(viewModel.undoMessage)
+                                .font(.subheadline)
+                            Spacer()
+                            Button {
+                                Task { await viewModel.undoLastClose() }
+                            } label: {
+                                Label("Undo", systemImage: "arrow.uturn.backward")
+                            }
+                            .buttonStyle(.borderedProminent)
                         }
-                        .buttonStyle(.borderedProminent)
+                        ProgressView(value: viewModel.undoTimeRemaining, total: 30)
+                            .tint(viewModel.undoTimeRemaining > 10 ? .blue : .orange)
+                        Text("\(Int(viewModel.undoTimeRemaining))s remaining")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
                     }
                     .padding(4)
                 }

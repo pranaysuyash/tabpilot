@@ -3,6 +3,11 @@ import Combine
 
 @MainActor
 class TabManagerViewModel: ObservableObject {
+    private let scanUseCase: ScanTabsUseCaseProtocol
+    private let closeUseCase: CloseTabsUseCaseProtocol
+    private let exportUseCase: ExportTabsUseCaseProtocol
+    private let eventBus: EventBus
+
     @Published var tabs: [TabInfo] = []
     @Published var windows: [WindowInfo] = []
     @Published var duplicateGroups: [DuplicateGroup] = []
@@ -34,8 +39,10 @@ class TabManagerViewModel: ObservableObject {
     // Undo snapshot state
     @Published var canUndo = false
     @Published var undoMessage = ""
+    @Published var undoTimeRemaining: Double = 0
     private var lastClosedTabs: [ClosedTabInfo] = []
     private var undoTimer: Timer?
+    private var undoCountdownTimer: Timer?
     
     struct ClosedTabInfo: Codable {
         let windowId: Int
@@ -45,6 +52,7 @@ class TabManagerViewModel: ObservableObject {
     }
     
     private var cancellables: Set<AnyCancellable> = []
+    private var scanTask: Task<Void, Never>?
     
     // Track first-seen timestamps for true "oldest" detection
     // Key: "windowId:index:url" for per-tab granularity
@@ -59,11 +67,22 @@ class TabManagerViewModel: ObservableObject {
     }
     private let protectedDomainsKey = "protectedDomains"
     
-    init() {
+    init(
+        scanUseCase: ScanTabsUseCaseProtocol = DefaultScanTabsUseCase(),
+        closeUseCase: CloseTabsUseCaseProtocol = DefaultCloseTabsUseCase(),
+        exportUseCase: ExportTabsUseCaseProtocol = DefaultExportTabsUseCase(),
+        eventBus: EventBus = .shared
+    ) {
+        self.scanUseCase = scanUseCase
+        self.closeUseCase = closeUseCase
+        self.exportUseCase = exportUseCase
+        self.eventBus = eventBus
         setupNotifications()
         setupSearchDebounce()
         loadTimestamps()
         loadProtectedDomains()
+        // Start scheduled auto-cleanup (no-op if isEnabled == false)
+        Task { @MainActor in AutoCleanupManager.shared.setup() }
     }
     
     // MARK: - Debounced Search
@@ -213,6 +232,14 @@ class TabManagerViewModel: ObservableObject {
                 self?.requestCloseAllDuplicates(keepOldest: true)
             }
             .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: .closeDuplicates)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                // Hotkey: directly close all duplicates (keeps oldest) without review workflow
+                Task { await self?.closeAllDuplicatesDirectly() }
+            }
+            .store(in: &cancellables)
         
         NotificationCenter.default.publisher(for: .focusFilter)
             .receive(on: DispatchQueue.main)
@@ -350,18 +377,40 @@ class TabManagerViewModel: ObservableObject {
     }
     
     func scan() async {
+        // Cancel any in-flight scan before starting a new one
+        scanTask?.cancel()
+        scanTask = nil
+
         isScanning = true
         scanProgress = 0
         scanMessage = "Starting scan..."
         errorMessage = nil
         scanStats = nil
-        
+
+        // Capture task reference for cancellation support
+        let task: Task<Void, Never> = Task { @MainActor [weak self] in
+            guard let self else { return }
+            await self._performScan()
+        }
+        scanTask = task
+        await task.value
+    }
+
+    private func _performScan() async {
         do {
-            let result = try await ChromeController.shared.scanAllTabsFast { [weak self] progress, message in
-                Task { @MainActor in
-                    self?.scanProgress = Double(progress) / 100.0
-                    self?.scanMessage = message
+            // 30-second timeout around the full scan
+            let result = try await withTimeout(seconds: 30) { [self] in
+                try await scanUseCase.execute { [weak self] progress, message in
+                    Task { @MainActor in
+                        self?.scanProgress = Double(progress) / 100.0
+                        self?.scanMessage = message
+                    }
                 }
+            }
+
+            guard !Task.isCancelled else {
+                isScanning = false
+                return
             }
             
             // Store telemetry
@@ -395,19 +444,33 @@ class TabManagerViewModel: ObservableObject {
             self.userAnalysis = analyzeUser(tabs: self.tabs, duplicates: self.duplicateGroups)
             
         } catch ChromeError.notRunning {
-            errorMessage = "Chrome is not running"
+            let userError = UserFacingError.chromeNotRunning
+            errorMessage = userError.errorDescription
+            ErrorPresenter.shared.present(userError)
+        } catch is CancellationError {
+            SecureLogger.info("Scan cancelled")
         } catch let error as ChromeError {
             errorMessage = error.localizedDescription
+            ErrorPresenter.shared.present(error)
         } catch {
-            errorMessage = "Failed to scan: \(error.localizedDescription)"
+            let userError = UserFacingError.scanFailed(reason: error.localizedDescription)
+            errorMessage = userError.errorDescription
+            ErrorPresenter.shared.present(userError)
         }
-        
+
         isScanning = false
     }
     
     func closeSelectedTabs() async {
         let toClose = tabs.filter { selectedTabIds.contains($0.id) }
         guard !toClose.isEmpty else { return }
+        
+        guard await ChromeController.shared.isChromeRunning() else {
+            let userError = UserFacingError.chromeNotRunning
+            errorMessage = userError.errorDescription
+            ErrorPresenter.shared.present(userError)
+            return
+        }
         
         // Save snapshot for undo
         saveSnapshot(for: toClose)
@@ -420,13 +483,19 @@ class TabManagerViewModel: ObservableObject {
         
         for (windowId, windowTabs) in byWindow {
             let targets = windowTabs.map { (url: $0.url, title: $0.title) }
-            let result = await ChromeController.shared.closeTabsDeterministic(
-                windowId: windowId,
-                targets: targets
-            )
+            let result = await closeUseCase.execute(windowId: windowId, targets: targets)
             totalClosed += result.closed
             totalFailed += result.failed
             totalAmbiguous += result.ambiguous
+        }
+
+        for tab in toClose.prefix(totalClosed) {
+            eventBus.publish(TabClosedEvent(tabId: tab.id, timestamp: Date()))
+        }
+        
+        if totalFailed > 0 {
+            let userError = UserFacingError.tabCloseFailed(count: totalFailed)
+            ErrorPresenter.shared.present(userError)
         }
         
         // Show appropriate feedback
@@ -530,10 +599,7 @@ class TabManagerViewModel: ObservableObject {
         
         for (windowId, windowTabs) in byWindow {
             let targets = windowTabs.map { (url: $0.url, title: $0.title) }
-            let result = await ChromeController.shared.closeTabsDeterministic(
-                windowId: windowId,
-                targets: targets
-            )
+            let result = await closeUseCase.execute(windowId: windowId, targets: targets)
             totalClosed += result.closed
             totalFailed += result.failed
             totalAmbiguous += result.ambiguous
@@ -584,9 +650,24 @@ class TabManagerViewModel: ObservableObject {
             title: $0.title,
             closedAt: Date()
         )}
+        eventBus.publish(ArchiveCreatedEvent(archiveId: UUID().uuidString, tabCount: tabs.count))
         canUndo = true
         undoMessage = "Closed \(tabs.count) tabs"
-        
+        undoTimeRemaining = 30
+
+        // Per-second countdown
+        undoCountdownTimer?.invalidate()
+        undoCountdownTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                guard let self else { return }
+                self.undoTimeRemaining -= 1
+                if self.undoTimeRemaining <= 0 {
+                    self.undoCountdownTimer?.invalidate()
+                    self.undoCountdownTimer = nil
+                }
+            }
+        }
+
         // Auto-expire undo after 30 seconds
         undoTimer?.invalidate()
         undoTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: false) { [weak self] _ in
@@ -600,8 +681,11 @@ class TabManagerViewModel: ObservableObject {
         lastClosedTabs.removeAll()
         canUndo = false
         undoMessage = ""
+        undoTimeRemaining = 0
         undoTimer?.invalidate()
         undoTimer = nil
+        undoCountdownTimer?.invalidate()
+        undoCountdownTimer = nil
     }
     
     func undoLastClose() async {
@@ -688,7 +772,7 @@ class TabManagerViewModel: ObservableObject {
         var closed = 0
         for (windowId, windowTabs) in byWindow {
             let targets = windowTabs.map { (url: $0.url, title: $0.title) }
-            let result = await ChromeController.shared.closeTabsDeterministic(windowId: windowId, targets: targets)
+            let result = await closeUseCase.execute(windowId: windowId, targets: targets)
             closed += result.closed
         }
         displayToast(message: "Closed \(closed) tabs from \(domain)")
@@ -717,6 +801,14 @@ class TabManagerViewModel: ObservableObject {
     }
     @Published var exportFormat: ExportFormat = .json
 
+    func exportCurrentTabs(format: ExportManager.ExportFormat) -> String {
+        exportUseCase.export(tabs: tabs, format: format)
+    }
+
+    func exportCurrentDuplicates(format: ExportManager.ExportFormat) -> String {
+        exportUseCase.exportDuplicates(groups: duplicateGroups, format: format)
+    }
+
     // MARK: - Sessions
 
     @Published var sessions: [Session] = []
@@ -743,17 +835,64 @@ class TabManagerViewModel: ObservableObject {
 
     // MARK: - Move Tabs
 
+    /// Moves tabs (by ID) to an existing Chrome window by reopening them there and closing originals.
     func moveTabsToWindow(tabIds: [String], targetWindowId: Int) async {
+        guard await ChromeController.shared.isChromeRunning() else { return }
 
+        let tabsToMove = tabs.filter { tabIds.contains($0.id) }
+        guard !tabsToMove.isEmpty else { return }
+
+        // Group by source window so we can close originals deterministically
+        let bySourceWindow = Dictionary(grouping: tabsToMove) { $0.windowId }
+
+        // Open each URL in the target window first
+        var opened = 0
+        for tab in tabsToMove {
+            let success = await ChromeController.shared.openTab(windowId: targetWindowId, url: tab.url)
+            if success { opened += 1 }
+        }
+
+        // Close originals from source windows (skip if source == target)
+        for (sourceWindowId, windowTabs) in bySourceWindow where sourceWindowId != targetWindowId {
+            let targets = windowTabs.map { (url: $0.url, title: $0.title) }
+            _ = await closeUseCase.execute(windowId: sourceWindowId, targets: targets)
+        }
+
+        if opened > 0 {
+            displayToast(message: "Moved \(opened) tab\(opened == 1 ? "" : "s") to window \(targetWindowId)")
+        }
+        await scan()
     }
 
+    /// Moves tabs (by ID) to a new Chrome window.
+    /// Note: requires AppleScript `make new window` which is not yet in ChromeController.
+    /// Currently opens tabs in window 1 as a fallback — wire up openNewWindow when available.
     func moveTabsToNewWindow(tabIds: [String]) async {
+        guard await ChromeController.shared.isChromeRunning() else { return }
 
+        // Fallback: use first available window that isn't the source
+        let tabsToMove = tabs.filter { tabIds.contains($0.id) }
+        guard !tabsToMove.isEmpty else { return }
+
+        let sourceIds = Set(tabsToMove.map { $0.windowId })
+        let targetWindowId = windows.first { !sourceIds.contains($0.windowId) }?.windowId
+        guard let targetId = targetWindowId else {
+            displayToast(message: "No other window to move tabs to")
+            return
+        }
+        await moveTabsToWindow(tabIds: tabIds, targetWindowId: targetId)
     }
 
     func closeAllDuplicates(keepOldest: Bool = true) async {
         let requested = duplicateGroups.reduce(0) { $0 + $1.wastedCount }
         guard ensureCanClose(requestedCount: requested) else { return }
+        
+        guard await ChromeController.shared.isChromeRunning() else {
+            let userError = UserFacingError.chromeNotRunning
+            errorMessage = userError.errorDescription
+            ErrorPresenter.shared.present(userError)
+            return
+        }
         
         // Collect all tabs to close grouped by window for deterministic close
         var tabsByWindow: [Int: [TabInfo]] = [:]
@@ -770,17 +909,32 @@ class TabManagerViewModel: ObservableObject {
         var totalClosed = 0
         var totalFailed = 0
         var totalAmbiguous = 0
+
+        // Process each window's tabs in parallel using TaskGroup for throughput.
+        // Within each window, closeTabsDeterministic already handles descending-index order.
+        let windowResults = await withTaskGroup(
+            of: (closed: Int, failed: Int, ambiguous: Int).self
+        ) { group in
+            for (windowId, windowTabs) in tabsByWindow {
+                let targets = windowTabs.map { (url: $0.url, title: $0.title) }
+                group.addTask {
+                    await self.closeUseCase.execute(windowId: windowId, targets: targets)
+                }
+            }
+            var results: [(closed: Int, failed: Int, ambiguous: Int)] = []
+            for await result in group { results.append(result) }
+            return results
+        }
+
+        for r in windowResults {
+            totalClosed += r.closed
+            totalFailed += r.failed
+            totalAmbiguous += r.ambiguous
+        }
         
-        // Close each window's tabs deterministically
-        for (windowId, windowTabs) in tabsByWindow {
-            let targets = windowTabs.map { (url: $0.url, title: $0.title) }
-            let result = await ChromeController.shared.closeTabsDeterministic(
-                windowId: windowId,
-                targets: targets
-            )
-            totalClosed += result.closed
-            totalFailed += result.failed
-            totalAmbiguous += result.ambiguous
+        if totalFailed > 0 {
+            let userError = UserFacingError.tabCloseFailed(count: totalFailed)
+            ErrorPresenter.shared.present(userError)
         }
         
         if totalAmbiguous > 0 {
@@ -793,15 +947,29 @@ class TabManagerViewModel: ObservableObject {
         
         await scan()
     }
-    
+
+    /// Called by global hotkey Cmd+Shift+D — closes all duplicates directly without confirmation flow.
+    func closeAllDuplicatesDirectly() async {
+        await closeAllDuplicates(keepOldest: true)
+    }
+
     func activateTab(_ tab: TabInfo) async {
+        guard await ChromeController.shared.isChromeRunning() else {
+            let userError = UserFacingError.chromeNotRunning
+            errorMessage = userError.errorDescription
+            ErrorPresenter.shared.present(userError)
+            return
+        }
+        
         // Re-scan window to get current tab index with title disambiguation
         guard let currentIndex = await ChromeController.shared.findTabIndex(
             windowId: tab.windowId,
             url: tab.url,
             title: tab.title
         ) else {
-            displayToast(message: "Tab no longer exists (may have been closed)")
+            let userError = UserFacingError.tabNotFound
+            errorMessage = userError.errorDescription
+            ErrorPresenter.shared.present(userError)
             return
         }
 
@@ -812,7 +980,9 @@ class TabManagerViewModel: ObservableObject {
             )
             displayToast(message: "Switched to tab: \(tab.title.prefix(40))")
         } catch {
-            displayToast(message: "Failed to activate tab: \(error.localizedDescription)")
+            let userError = UserFacingError.unknown(error)
+            errorMessage = userError.errorDescription
+            ErrorPresenter.shared.present(userError)
         }
     }
 

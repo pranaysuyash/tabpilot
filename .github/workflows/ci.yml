@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [ "master", "main", "codex/**" ]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Swift build
+        run: swift build
+
+      - name: Swift test (with coverage)
+        run: swift test --enable-code-coverage
+
+      - name: Security test pipeline
+        run: make security-test
+
+      - name: Performance benchmark
+        run: swift test --filter PerformanceTests
+
+      - name: Upload coverage raw data
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: swift-code-coverage-raw
+          path: .build/debug/codecov
+          if-no-files-found: warn

@@ -20,6 +20,11 @@ class CleanupRuleStore: ObservableObject {
         rules.append(rule)
         persist()
     }
+
+    func replaceAll(_ newRules: [CleanupRule]) {
+        rules = newRules
+        persist()
+    }
     
     func update(_ rule: CleanupRule) {
         if let idx = rules.firstIndex(where: { $0.id == rule.id }) {
@@ -57,7 +62,7 @@ class CleanupRuleStore: ObservableObject {
                 rules = try JSONDecoder().decode([CleanupRule].self, from: data)
             }
         } catch {
-            print("CleanupRuleStore: load failed: \(error)")
+            SecureLogger.error("CleanupRuleStore: load failed: \(error.localizedDescription)")
             rules = []
         }
     }
@@ -67,7 +72,7 @@ class CleanupRuleStore: ObservableObject {
             let data = try JSONEncoder().encode(rules)
             UserDefaults.standard.set(data, forKey: storageKey)
         } catch {
-            print("CleanupRuleStore: persist failed: \(error)")
+            SecureLogger.error("CleanupRuleStore: persist failed: \(error.localizedDescription)")
         }
     }
     

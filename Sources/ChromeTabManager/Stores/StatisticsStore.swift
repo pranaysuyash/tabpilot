@@ -40,7 +40,7 @@ final class StatisticsStore: @unchecked Sendable {
         do {
             return try JSONDecoder().decode(TabStatistics.self, from: data)
         } catch {
-            print("StatisticsStore: Failed to decode statistics: \(error.localizedDescription)")
+            SecureLogger.error("StatisticsStore: Failed to decode statistics: \(error.localizedDescription)")
             return TabStatistics()
         }
     }
@@ -53,7 +53,7 @@ final class StatisticsStore: @unchecked Sendable {
             let data = try JSONEncoder().encode(stats)
             userDefaults.set(data, forKey: statsKey)
         } catch {
-            print("StatisticsStore: Failed to encode statistics: \(error.localizedDescription)")
+            SecureLogger.error("StatisticsStore: Failed to encode statistics: \(error.localizedDescription)")
         }
     }
 

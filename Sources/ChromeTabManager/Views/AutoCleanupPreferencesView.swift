@@ -4,6 +4,7 @@ struct AutoCleanupPreferencesView: View {
     @State private var isEnabled = false
     @State private var checkInterval: Double = 15
     @State private var rules: [CleanupRule] = []
+    @ObservedObject private var manager = AutoCleanupManager.shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -21,6 +22,27 @@ struct AutoCleanupPreferencesView: View {
                     .onChange(of: checkInterval) { newValue in
                         AutoCleanupManager.shared.checkInterval = newValue * 60
                     }
+            }
+
+            // Next run / last run status
+            if isEnabled {
+                HStack(spacing: 20) {
+                    if let next = manager.nextCheckAt {
+                        Label("Next: \(next, style: .relative)", systemImage: "clock")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    if let last = manager.lastCheckAt {
+                        Label("Last: \(last, style: .relative)", systemImage: "checkmark.circle")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    if manager.lastCleanedCount > 0 {
+                        Label("\(manager.lastCleanedCount) tabs cleaned", systemImage: "trash")
+                            .font(.caption)
+                            .foregroundStyle(.green)
+                    }
+                }
             }
 
             Divider()
