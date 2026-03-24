@@ -14,6 +14,9 @@ struct AppToolbarContent: ToolbarContent {
                         Label(mode.rawValue, systemImage: mode.icon)
                     }
                     .keyboardShortcut(viewModeShortcut(for: mode), modifiers: .command)
+                    .accessibilityLabel("View mode: \(mode.rawValue)")
+                    .accessibilityHint(mode.description)
+                    .accessibilityValue(viewModel.viewMode == mode ? "selected" : "not selected")
                 }
                 
                 Button(action: { Task { await viewModel.scan() } }) {
@@ -21,6 +24,18 @@ struct AppToolbarContent: ToolbarContent {
                 }
                 .disabled(viewModel.isScanning)
                 .keyboardShortcut("r", modifiers: .command)
+                .accessibilityLabel("Scan Chrome tabs")
+                .accessibilityHint("Triggers a full scan of all open Chrome windows")
+                
+                if !viewModel.tabs.isEmpty {
+                    Button(action: { Task { await viewModel.incrementalScan() } }) {
+                        Label("Refresh", systemImage: "arrow.triangle.2.circlepath")
+                    }
+                    .disabled(viewModel.isScanning)
+                    .help("Quick refresh - detects changes without full rescan")
+                    .accessibilityLabel("Refresh tab list")
+                    .accessibilityHint("Quick refresh that detects tab changes without a full rescan")
+                }
             }
         }
     }

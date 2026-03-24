@@ -1,4 +1,4 @@
-# QA Test Report - Chrome Tab Manager Swift
+# QA Test Report - TabPilot Swift
 
 ## Build Info
 - **Date**: 2026-03-21
@@ -121,7 +121,7 @@ osascript -e 'tell application "Google Chrome" to return count of tabs of window
 ## Build Artifacts
 
 ```
-Chrome Tab Manager.app/
+TabPilot.app/
 └── Contents/
     ├── Info.plist
     ├── MacOS/
@@ -131,7 +131,7 @@ Chrome Tab Manager.app/
 
 **Launch Command:**
 ```bash
-open "/Users/pranay/Projects/chrome-tab-manager-swift/Chrome Tab Manager.app"
+open "/Users/pranay/Projects/chrome-tab-manager-swift/TabPilot.app"
 ```
 
 **Permissions Required:**

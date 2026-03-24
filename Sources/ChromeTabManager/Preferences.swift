@@ -27,6 +27,18 @@ struct PreferencesView: View {
                         Label("Protection", systemImage: "shield")
                     }
             }
+            
+            KeyboardShortcutsView()
+                .tabItem {
+                    Label("Shortcuts", systemImage: "keyboard")
+                }
+            
+            if viewModel.licenseManager.isLicensed {
+                AutoCleanupPreferencesView()
+                    .tabItem {
+                        Label("Auto-Cleanup", systemImage: "wand.and.stars")
+                    }
+            }
         }
         .frame(width: 500, height: 400)
         .padding()
@@ -215,5 +227,49 @@ struct ExportImportPreferences: View {
             }
         }
         .formStyle(.grouped)
+    }
+}
+
+struct KeyboardShortcutsView: View {
+    var body: some View {
+        Form {
+            Section("Global") {
+                ShortcutRow(action: "Scan Tabs", shortcut: "⌘R")
+                ShortcutRow(action: "Smart Select", shortcut: "⌘S")
+                ShortcutRow(action: "Close Selected", shortcut: "⌘W")
+                ShortcutRow(action: "Preferences", shortcut: "⌘,")
+            }
+            
+            Section("Selection") {
+                ShortcutRow(action: "Select All Except Oldest", shortcut: "⌘⇧O")
+                ShortcutRow(action: "Select All Except Newest", shortcut: "⌘⇧N")
+                ShortcutRow(action: "Clear Selection", shortcut: "Escape")
+            }
+            
+            Section("Navigation") {
+                ShortcutRow(action: "Filter/Search", shortcut: "⌘F")
+                ShortcutRow(action: "Focus Filter Field", shortcut: "⌘⇧F")
+            }
+        }
+        .formStyle(.grouped)
+    }
+}
+
+struct ShortcutRow: View {
+    let action: String
+    let shortcut: String
+    
+    var body: some View {
+        HStack {
+            Text(action)
+            Spacer()
+            Text(shortcut)
+                .font(.system(.body, design: .monospaced))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color(.controlBackgroundColor))
+                .clipShape(RoundedRectangle(cornerRadius: 4))
+        }
     }
 }

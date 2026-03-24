@@ -21,6 +21,11 @@ struct SidebarView: View {
                         }
                     }
                 }
+                
+                Section("Tab Health") {
+                    TabDebtView(viewModel: viewModel)
+                        .padding(.vertical, 4)
+                }
             }
         }
         .listStyle(.sidebar)
@@ -52,9 +57,13 @@ struct PersonaCard: View {
                 
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
                     StatBadge(value: analysis.totalTabs, label: "Tabs", color: Color.blue)
+                        .accessibilityLabel("\(analysis.totalTabs) total tabs")
                     StatBadge(value: analysis.windowCount, label: "Windows", color: .purple)
+                        .accessibilityLabel("\(analysis.windowCount) Chrome windows")
                     StatBadge(value: analysis.duplicateGroups, label: "Duplicates", color: .orange)
+                        .accessibilityLabel("\(analysis.duplicateGroups) duplicate groups")
                     StatBadge(value: analysis.wastedTabs, label: "Wasted", color: .red)
+                        .accessibilityLabel("\(analysis.wastedTabs) wasted duplicate tabs")
                 }
                 
                 // Scan telemetry
@@ -141,5 +150,7 @@ struct WindowRow: View {
                 .clipShape(Capsule())
         }
         .padding(.vertical, 4)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Window \(window.windowId), \(window.tabCount) tabs")
     }
 }

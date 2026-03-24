@@ -1,14 +1,14 @@
 # A++ Accessibility & Localization Excellence Roadmap
 
 **Date:** March 23, 2026  
-**Project:** Chrome Tab Manager for macOS  
+**Project:** TabPilot for macOS  
 **Goal:** Achieve accessibility excellence and comprehensive localization support
 
 ---
 
 ## Executive Summary
 
-This document outlines the comprehensive roadmap for achieving A++ accessibility standards and full localization support in Chrome Tab Manager. The app currently has foundational accessibility utilities implemented, with significant opportunity to expand and deepen support for VoiceOver, Dynamic Type, keyboard navigation, and internationalization.
+This document outlines the comprehensive roadmap for achieving A++ accessibility standards and full localization support in TabPilot. The app currently has foundational accessibility utilities implemented, with significant opportunity to expand and deepen support for VoiceOver, Dynamic Type, keyboard navigation, and internationalization.
 
 ---
 

@@ -8,7 +8,7 @@ struct ChromeTabManagerApp: App {
     var body: some Scene {
         // Use Window (not WindowGroup) for single-window utility app
         // Prevents duplicate command handling across multiple windows
-        Window("Chrome Tab Manager", id: "main") {
+        Window("TabPilot", id: "main") {
             ContentView()
                 .frame(minWidth: 900, minHeight: 600)
                 .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
@@ -72,10 +72,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             )
         }
 
-        // Ensure window is visible and activated
+        // Ensure window is visible but don't force activation over other apps
         if let window = NSApplication.shared.windows.first {
             window.makeKeyAndOrderFront(nil)
-            NSApplication.shared.activate(ignoringOtherApps: true)
         }
         // Register global hotkeys (Cmd+Shift+C to scan, Cmd+Shift+D to close duplicates)
         HotkeyManager.shared.enable()

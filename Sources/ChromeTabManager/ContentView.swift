@@ -136,6 +136,10 @@ struct ContentView: View {
                                 Text(viewModel.undoMessage)
                                     .font(.subheadline)
                                 
+                                Text("(\(Int(viewModel.undoTimeRemaining))s)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                
                                 Button {
                                     Task { await viewModel.undoLastClose() }
                                 } label: {

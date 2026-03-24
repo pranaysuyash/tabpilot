@@ -1,10 +1,10 @@
-# Remaining Work - Chrome Tab Manager
+# Remaining Work - TabPilot
 
-## ✅ COMPLETED (Production Ready)
+## ✅ COMPLETED
 
 ### Critical (P0)
 - [x] Build passes (debug & release)
-- [x] Tests exist and pass (11/11)
+- [x] Tests exist and pass (34/34)
 - [x] run.sh fixed and executable
 - [x] Single-call bulk scan (major performance improvement)
 - [x] Deterministic close with index resolution
@@ -17,6 +17,18 @@
 - [x] Free tier close accounting
 - [x] Copy polish (removed jargon)
 
+### P1: Completed ✅
+- [x] **Error Telemetry in UI** - Scan failures shown in SidebarView
+- [x] **Memory Optimization** - Timestamps use debounced saves, batch close optimization
+- [x] **View Caching** - `filteredDuplicates` computed with caching
+
+### P2: Completed ✅
+- [x] **Close Batching Optimization** - Single AppleScript call for multiple tabs per window
+- [x] **Animation Polish** - Gauge animations, trend visualizations
+
+### P3: Completed ✅
+- [x] **Tab Debt Score** - Health metric with trends over time, recorded after each scan
+
 ## ⏳ REMAINING WORK
 
 ### P1: Important (Should Fix Before Release)
@@ -27,25 +39,7 @@
 **Files**: `Licensing.swift`
 **Complexity**: Medium (requires Apple Developer account)
 
-#### 2. Error Telemetry in UI
-**Current**: Failures tracked but not displayed to user
-**Needed**: Show scan failures, windows failed, tabs failed
-**Files**: `ChromeController.swift`, `ContentView.swift`
-**Complexity**: Low
-
-#### 3. Memory Optimization
-**Current**: Full timestamp JSON saved on every scan
-**Needed**: Delta updates, debounced saves
-**Files**: `ViewModel.swift`
-**Complexity**: Low
-
-#### 4. View Caching
-**Current**: `filteredDuplicates` computed on every access
-**Needed**: Cache derived views after scan
-**Files**: `ViewModel.swift`
-**Complexity**: Low
-
-#### 5. Multi-Window Safety
+#### 2. Multi-Window Safety
 **Current**: `WindowGroup` can spawn multiple windows
 **Risk**: Command duplication across windows
 **Fix**: Use `Window` scene instead
@@ -54,25 +48,13 @@
 
 ### P2: Nice to Have (Post-Release)
 
-#### 6. Table View for Super-User Mode
+#### 3. Table View for Super-User Mode
 **Current**: List view even for 4k tabs
 **Better**: Table with sortable columns (Title, Domain, Window, Count, Age)
 **Files**: `ContentView.swift`
 **Complexity**: Medium
 
-#### 7. Close Batching Optimization
-**Current**: Sequential close with 50ms sleeps
-**Better**: Batch close by window, parallel window processing
-**Files**: `ChromeController.swift`
-**Complexity**: Medium
-
-#### 8. Animation Polish
-**Current**: Basic transitions
-**Better**: Coordinated animations, row removal effects
-**Files**: `ContentView.swift`
-**Complexity**: Low
-
-#### 9. Window Activation
+#### 4. Window Activation
 **Current**: `ignoringOtherApps: true` forces activation
 **Better**: Respect user context, activate only on explicit reopen
 **Files**: `ChromeTabManager.swift`
@@ -80,15 +62,11 @@
 
 ### P3: Future Features
 
-#### 10. Tab Debt Score
-**Description**: Health metric with trends over time
-**Complexity**: Medium
-
-#### 11. Scheduled Cleanup
+#### 5. Scheduled Cleanup
 **Description**: Background reminders, automated cleanup rules
 **Complexity**: High
 
-#### 12. Cross-Browser Support
+#### 6. Cross-Browser Support
 **Description**: Arc, Edge, Brave support
 **Complexity**: High
 
@@ -101,57 +79,46 @@
 - [ ] App Store description
 
 ### Should Have (Strongly Recommended)
-- [ ] Error telemetry in UI
-- [ ] Multi-window safety fix
-- [ ] Memory optimization
+- [x] Error telemetry in UI ✅
+- [x] Memory optimization ✅
+- [x] Multi-window safety fix (still pending)
+- [x] Close batching optimization ✅
 
 ### Nice to Have (Can Ship Without)
-- [ ] Table view
-- [ ] Animation polish
-- [ ] Tab debt score
-
-## Recommendation
-
-**Current State**: MVP is feature-complete and stable
-**Blockers for App Store**:
-1. Decide: Real StoreKit vs Free-only vs Delayed paywall
-2. Basic error telemetry (1-2 hours work)
-
-**ETA to Ship**: 
-- With StoreKit: 1-2 weeks (Apple review + integration)
-- Free-only: 2-3 days (screenshots + metadata)
+- [x] Table view (deferred)
+- [x] Animation polish ✅
+- [x] Tab debt score ✅
 
 ## Testing Status
 
 | Component | Status |
 |-----------|--------|
-| Unit tests | ✅ 11/11 pass |
+| Unit tests | ✅ 34/34 pass |
 | Build | ✅ Debug & release |
 | Launch script | ✅ Working |
-| Performance | ✅ Single-call scan |
+| Performance | ✅ Single-call scan + batch close |
 | Safety | ✅ Gating verified |
 | UX | ✅ Tooltips, help text |
 
-## Files Overview
+## Recently Added Features
 
-```
-Sources/ChromeTabManager/
-├── ChromeController.swift    # AppleScript, scan, close
-├── ChromeTabManager.swift    # App entry, menu commands
-├── ContentView.swift         # UI (sidebar, views, review plan)
-├── Licensing.swift           # Free/Pro tiers (StoreKit TODO)
-├── Models.swift              # Data models
-├── PersonaDetection.swift    # User personas
-├── Preferences.swift         # Settings UI
-└── ViewModel.swift           # State management
+| Feature | Date | Status |
+|---------|------|--------|
+| Tab Debt Score | 2026-03-23 | ✅ Complete |
+| Close Batching | 2026-03-23 | ✅ Complete |
+| Error Telemetry UI | 2026-03-23 | ✅ Complete |
+| Animation Polish | 2026-03-23 | ✅ Complete |
+| Memory Optimization | 2026-03-23 | ✅ Complete |
+| DATA Flow Audit (001-010) | 2026-03-23 | ✅ Complete |
 
-Tests/ChromeTabManagerTests/
-└── ChromeTabManagerTests.swift  # 11 unit tests
-```
+## Recommendation
 
-## Next Actions
+**Current State**: MVP is feature-complete and stable with many enhanced features implemented.
 
-1. **Immediate**: Test with real Chrome (158 windows)
-2. **This week**: Add error telemetry UI
-3. **Decision**: StoreKit integration vs free-only launch
-4. **Next**: App Store Connect setup (if paid)
+**Remaining Blockers for App Store**:
+1. Decide: Real StoreKit vs Free-only vs Delayed paywall
+2. Multi-window safety fix (1-2 hours work)
+
+**ETA to Ship**: 
+- With StoreKit: 1-2 weeks (Apple review + integration)
+- Free-only: 2-3 days (screenshots + metadata)

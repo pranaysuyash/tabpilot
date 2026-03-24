@@ -59,7 +59,7 @@ struct ChromeTabManagerWidgetEntryView: View {
 
         default:
             VStack(alignment: .leading, spacing: 10) {
-                Text("Chrome Tab Manager")
+                Text("TabPilot")
                     .font(.headline)
 
                 HStack(spacing: 12) {
@@ -95,7 +95,7 @@ struct ChromeTabManagerWidget: Widget {
         StaticConfiguration(kind: kind, provider: ChromeTabWidgetProvider()) { entry in
             ChromeTabManagerWidgetEntryView(entry: entry)
         }
-        .configurationDisplayName("Chrome Tab Manager")
+        .configurationDisplayName("TabPilot")
         .description("Shows tab count and duplicate health at a glance.")
         .supportedFamilies([.systemSmall, .systemMedium])
     }

@@ -2,7 +2,7 @@
 
 ## Goal
 
-Drive Chrome Tab Manager from current mixed quality state to A- (near-term) and A++ (long-term) through phased execution.
+Drive TabPilot from current mixed quality state to A- (near-term) and A++ (long-term) through phased execution.
 
 ## Target Grades
 

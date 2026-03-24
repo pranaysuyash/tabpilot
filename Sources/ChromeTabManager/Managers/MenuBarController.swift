@@ -41,11 +41,11 @@ class MenuBarController: ObservableObject {
         guard let button = statusItem?.button else { return }
         
         if duplicateCount > 0 {
-            button.image = NSImage(systemSymbolName: "doc.on.doc.fill", accessibilityDescription: "Chrome Tab Manager")
+            button.image = NSImage(systemSymbolName: "doc.on.doc.fill", accessibilityDescription: "TabPilot")
             button.title = " \(duplicateCount)"
             button.imagePosition = .imageLeft
         } else {
-            button.image = NSImage(systemSymbolName: "doc.on.doc", accessibilityDescription: "Chrome Tab Manager")
+            button.image = NSImage(systemSymbolName: "doc.on.doc", accessibilityDescription: "TabPilot")
             button.title = ""
         }
         
@@ -61,7 +61,7 @@ class MenuBarController: ObservableObject {
         
         menu.addItem(.separator())
         
-        let openItem = NSMenuItem(title: "Open Chrome Tab Manager", action: #selector(openApp), keyEquivalent: "")
+        let openItem = NSMenuItem(title: "Open TabPilot", action: #selector(openApp), keyEquivalent: "")
         openItem.target = self
         menu.addItem(openItem)
         

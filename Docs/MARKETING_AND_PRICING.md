@@ -1,4 +1,4 @@
-# Chrome Tab Manager - Pricing & Marketing Strategy
+# TabPilot - Pricing & Marketing Strategy
 
 ## Decision: Single Tier, Lifetime License
 
@@ -47,7 +47,7 @@
 
 ### Price Point Analysis
 
-**$19.99 for Chrome Tab Manager is reasonable because:**
+**$19.99 for TabPilot is reasonable because:**
 
 1. **Value justification:** 
    - Saves hours of tab-hunting
@@ -77,7 +77,7 @@
 
 **Tagline:** "Finally, a tidy Chrome."
 
-**Core message:** Chrome slows down when you have too many tabs. Chrome Tab Manager finds your duplicates and closes them safely. One click, and Chrome is fast again.
+**Core message:** Chrome slows down when you have too many tabs. TabPilot finds your duplicates and closes them safely. One click, and Chrome is fast again.
 
 ### Channels
 
@@ -103,9 +103,9 @@
 
 **App Store Description:**
 
-> Chrome Tab Manager finds and closes your duplicate tabs with one click.
+> TabPilot finds and closes your duplicate tabs with one click.
 >
-> Chrome slows down when you have too many tabs open. Chrome Tab Manager scans all your Chrome windows, finds duplicate tabs, and lets you close them safely.
+> Chrome slows down when you have too many tabs open. TabPilot scans all your Chrome windows, finds duplicate tabs, and lets you close them safely.
 >
 > FEATURES:
 > • Find all duplicate tabs across all Chrome windows

@@ -112,7 +112,7 @@ cd /Users/pranay/Projects/chrome-tab-manager-swift
 
 Or open directly:
 ```bash
-open "Chrome Tab Manager.app"
+open "TabPilot.app"
 ```
 
 ### First Launch Setup
