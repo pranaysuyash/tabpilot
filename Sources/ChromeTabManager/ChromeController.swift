@@ -1,12 +1,5 @@
 import Foundation
 
-enum ChromeError: Error {
-    case notRunning
-    case appleScriptFailed(String)
-    case timeout
-    case ambiguousMatch(String)
-}
-
 // MARK: - AppleScript String Escaping
 
 /// Escape a string for safe use in AppleScript
@@ -39,6 +32,7 @@ actor ChromeController {
             let result = try await runAppleScript(script, timeout: 5)
             return result.trimmingCharacters(in: .whitespacesAndNewlines) == "true"
         } catch {
+            SecureLogger.error("isChromeRunning failed: \(error.localizedDescription)")
             return false
         }
     }
@@ -50,8 +44,40 @@ actor ChromeController {
         end tell
         """
         
-        let result = try await runAppleScript(script, timeout: 10)
+        let config = RetryConfig(maxAttempts: 3, baseDelay: 0.5, maxDelay: 3.0)
+        
+        let result = try await AsyncRetryHandler.retry(config: config) {
+            try await self.runAppleScript(script, timeout: 10)
+        }
         return Int(result.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0
+    }
+    
+    // MARK: - Stable ID Generation (DATA-010)
+    
+    private func stableTabId(windowId: Int, tabIndex: Int, url: String, title: String) -> String {
+        let normalizedUrl = normalizeURL(url, stripQuery: false, filterTracking: true)
+        let contentString = "\(normalizedUrl)|\(title)"
+        let contentHash = String(contentString.hashValue)
+        return "tab-\(contentHash)-w\(windowId)-t\(tabIndex)"
+    }
+    
+    private func normalizeURL(_ url: String, stripQuery: Bool, filterTracking: Bool) -> String {
+        guard var components = URLComponents(string: url) else { return url }
+        
+        if stripQuery {
+            components.query = nil
+        }
+        
+        if filterTracking, let query = components.query {
+            let params = query.split(separator: "&")
+            let filtered = params.filter { param in
+                let lower = param.lowercased()
+                return !lower.contains("utm_") && !lower.contains("fbclid") && !lower.contains("ref=")
+            }
+            components.query = filtered.isEmpty ? nil : filtered.joined(separator: "&")
+        }
+        
+        return components.string ?? url
     }
     
     /// Ultra-fast single-call scan for all windows and tabs
@@ -99,7 +125,7 @@ actor ChromeController {
                 guard !trimmed.isEmpty else { continue }
                 
                 // Split on first 3 pipes only — title may contain pipe characters
-                var parts = trimmed.components(separatedBy: "|")
+                let parts = trimmed.components(separatedBy: "|")
                 guard parts.count >= 4,
                       let windowId = Int(parts[0].trimmingCharacters(in: .whitespacesAndNewlines)),
                       let tabIndex = Int(parts[1].trimmingCharacters(in: .whitespacesAndNewlines)) else {
@@ -110,8 +136,9 @@ actor ChromeController {
                 // Reassemble any remaining parts as the title (handles pipes in title)
                 let title = parts[3...].joined(separator: "|").trimmingCharacters(in: .whitespacesAndNewlines)
                 
+                let tabId = stableTabId(windowId: windowId, tabIndex: tabIndex, url: url, title: title)
                 let tab = TabInfo(
-                    id: "w\(windowId)-t\(tabIndex)",
+                    id: tabId,
                     windowId: windowId,
                     tabIndex: tabIndex,
                     title: title.isEmpty ? "Untitled" : title,
@@ -217,6 +244,7 @@ actor ChromeController {
             let result = try await runAppleScript(script, timeout: 10)
             return result.trimmingCharacters(in: .whitespacesAndNewlines) == "opened"
         } catch {
+            SecureLogger.error("openTab failed for window \(windowId), url: \(url): \(error.localizedDescription)")
             return false
         }
     }
@@ -237,8 +265,12 @@ actor ChromeController {
         end tell
         """
         
+        let config = RetryConfig(maxAttempts: 3, baseDelay: 0.5, maxDelay: 3.0)
+        
         do {
-            let result = try await runAppleScript(script, timeout: 10)
+            let result = try await AsyncRetryHandler.retry(config: config) {
+                try await self.runAppleScript(script, timeout: 10)
+            }
             let lines = result.components(separatedBy: ", ")
             var indices: [(Int, String, String)] = []
             
@@ -251,6 +283,7 @@ actor ChromeController {
             }
             return indices
         } catch {
+            SecureLogger.error("getWindowTabIndices failed for window \(windowId): \(error.localizedDescription)")
             return []
         }
     }
@@ -296,6 +329,7 @@ actor ChromeController {
             let result = try await runAppleScript(script, timeout: 10)
             return result.trimmingCharacters(in: .whitespacesAndNewlines) == "closed"
         } catch {
+            SecureLogger.error("closeTabByURL failed for window \(windowId), url: \(url): \(error.localizedDescription)")
             return false
         }
     }
@@ -325,11 +359,18 @@ actor ChromeController {
         }
         
         // Close in descending index order (highest first to avoid shifting)
+        // Use batch close for better performance
         let sortedIndices = toCloseIndices.sorted(by: >)
         var closed = 0
         var failed = 0
         
-        for index in sortedIndices {
+        if sortedIndices.count > 1 {
+            // Batch close: single AppleScript call for multiple tabs
+            let batchResult = await closeTabsBatch(windowId: windowId, indices: sortedIndices)
+            closed = batchResult.closed
+            failed = batchResult.failed
+        } else if let index = sortedIndices.first {
+            // Single tab - use existing method
             let script = """
             tell application "Google Chrome"
                 close tab \(index) of window \(windowId)
@@ -340,16 +381,45 @@ actor ChromeController {
             do {
                 let result = try await runAppleScript(script, timeout: 5)
                 if result.trimmingCharacters(in: .whitespacesAndNewlines) == "closed" {
-                    closed += 1
+                    closed = 1
                 } else {
-                    failed += 1
+                    failed = 1
                 }
             } catch {
-                failed += 1
+                failed = 1
             }
         }
         
         return (closed, failed, ambiguous)
+    }
+    
+    // MARK: - Batch Close (P2 Optimization)
+    
+    private func closeTabsBatch(windowId: Int, indices: [Int]) async -> (closed: Int, failed: Int) {
+        guard !indices.isEmpty else { return (0, 0) }
+        
+        let indicesList = indices.map { String($0) }.joined(separator: ", ")
+        let script = """
+        tell application "Google Chrome"
+            set closeCount to 0
+            repeat with idx in {\(indicesList)}
+                try
+                    close tab idx of window \(windowId)
+                    set closeCount to closeCount + 1
+                end try
+            end repeat
+            return closeCount as string
+        end tell
+        """
+        
+        do {
+            let result = try await runAppleScript(script, timeout: 30)
+            let closedCount = Int(result.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0
+            let failed = indices.count - closedCount
+            return (closedCount, failed)
+        } catch {
+            return (0, indices.count)
+        }
     }
     
     func activateTab(windowId: Int, tabIndex: Int) async throws {
@@ -422,6 +492,7 @@ actor ChromeController {
             }
             return nil
         } catch {
+            SecureLogger.error("findTabIndex failed for window \(windowId), url: \(url): \(error.localizedDescription)")
             return nil
         }
     }
@@ -440,6 +511,7 @@ actor ChromeController {
                     totalTabs: knownTabCount
                 ))
             } catch {
+                SecureLogger.warning("getInstances: getWindowCount failed: \(error.localizedDescription)")
                 instances.append(ChromeInstance(
                     name: "Google Chrome",
                     isRunning: true,
@@ -452,7 +524,7 @@ actor ChromeController {
         return instances
     }
     
-    private func runAppleScript(_ script: String, timeout: TimeInterval) async throws -> String {
+    func runAppleScript(_ script: String, timeout: TimeInterval) async throws -> String {
         return try await withCheckedThrowingContinuation { continuation in
             Task.detached {
                 let task = Process()

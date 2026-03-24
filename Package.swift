@@ -3,11 +3,15 @@ import PackageDescription
 
 let package = Package(
     name: "ChromeTabManager",
-    platforms: [.macOS(.v13)],
+    // Note: This package requires macOS 14+ due to APIs/features used by the app.
+    platforms: [.macOS(.v14)],
     dependencies: [],
     targets: [
         .executableTarget(
             name: "ChromeTabManager",
+            exclude: [
+                "AppModels.swift"
+            ],
             swiftSettings: [.enableExperimentalFeature("StrictConcurrency")]
         ),
         .testTarget(

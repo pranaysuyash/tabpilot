@@ -157,6 +157,160 @@ final class ChromeTabManagerTests: XCTestCase {
         XCTAssertEqual(group.oldestTab?.id, "t2")
         XCTAssertEqual(group.newestTab?.id, "t3")
     }
+
+    // MARK: - App Data Import/Export Tests
+
+    @MainActor
+    func testAppDataSnapshotRoundTripPreservesStatistics() throws {
+        let stats = TabStatistics(
+            totalTabsClosed: 10,
+            duplicateTabsClosed: 4,
+            sessionsCount: 2,
+            lastSessionDate: Date(timeIntervalSince1970: 1_700_000_000),
+            mostClosedDomains: ["example.com": 3],
+            totalSavingsSeconds: 1_200,
+            tabDebtScore: 82,
+            tabDebtHistory: [TabDebtEntry(date: Date(timeIntervalSince1970: 1_700_000_100), tabCount: 42, duplicateCount: 7)],
+            lastRecordedTabCount: 42,
+            lastRecordedDate: Date(timeIntervalSince1970: 1_700_000_100)
+        )
+
+        let snapshot = AppDataSnapshot(
+            exportedAt: Date(timeIntervalSince1970: 1_700_000_200),
+            appVersion: "1.0",
+            schemaVersion: AppDataSnapshot.currentSchemaVersion,
+            cleanupRules: [],
+            urlPatterns: [],
+            sessions: [],
+            closedTabHistory: [],
+            statistics: stats
+        )
+
+        let encoded = try snapshot.toJSON()
+        let decoded = try AppDataSnapshot.fromJSON(encoded)
+
+        XCTAssertEqual(decoded.schemaVersion, AppDataSnapshot.currentSchemaVersion)
+        XCTAssertEqual(decoded.statistics?.totalTabsClosed, 10)
+        XCTAssertEqual(decoded.statistics?.mostClosedDomains["example.com"], 3)
+        XCTAssertEqual(decoded.statistics?.tabDebtScore, 82)
+    }
+
+    @MainActor
+    func testAppDataImportRejectsFutureSchemaVersion() throws {
+        let snapshot = AppDataSnapshot(
+            exportedAt: Date(),
+            appVersion: "9.9",
+            schemaVersion: AppDataSnapshot.currentSchemaVersion + 1,
+            cleanupRules: [],
+            urlPatterns: [],
+            sessions: [],
+            closedTabHistory: [],
+            statistics: nil
+        )
+
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("future-schema-import.json")
+        try snapshot.toJSON().write(to: url)
+
+        XCTAssertThrowsError(try AppDataManager.shared.importFromFile(at: url)) { error in
+            guard case AppDataImportError.unsupportedSchemaVersion = error else {
+                return XCTFail("Expected unsupported schema version error, got: \(error)")
+            }
+        }
+    }
+
+    @MainActor
+    func testAppDataImportMergeAndReplaceBehavior() throws {
+        // Reset stores to deterministic baseline.
+        CleanupRuleStore.shared.replaceAll([])
+        URLPatternStore.shared.savePatterns([])
+        SessionStore.shared.replaceAll([])
+        ClosedTabHistoryStore.shared.clear()
+        StatisticsStore.shared.reset()
+
+        let existingRuleID = UUID()
+        let existingPatternID = UUID()
+        let existingSessionID = UUID()
+
+        let existingRule = CleanupRule(
+            id: existingRuleID,
+            name: "Existing Rule",
+            pattern: URLPattern(pattern: "*.existing.com"),
+            action: .close,
+            enabled: true
+        )
+        let existingPattern = URLPattern(id: existingPatternID, pattern: "*.existing-pattern.com")
+        let existingSession = Session(id: existingSessionID, name: "Existing Session", tabs: [
+            SessionTab(title: "Existing", url: "https://existing-session.com")
+        ])
+
+        CleanupRuleStore.shared.replaceAll([existingRule])
+        URLPatternStore.shared.savePatterns([existingPattern])
+        SessionStore.shared.replaceAll([existingSession])
+        ClosedTabHistoryStore.shared.add(ClosedTabRecord(windowId: 1, url: "https://old-history.com", title: "old"))
+        StatisticsStore.shared.save(TabStatistics(totalTabsClosed: 5))
+
+        let importedRule = CleanupRule(
+            id: UUID(),
+            name: "Imported Rule",
+            pattern: URLPattern(pattern: "*.imported.com"),
+            action: .archive,
+            enabled: true
+        )
+        let importedPattern = URLPattern(id: UUID(), pattern: "*.imported-pattern.com")
+        let importedSession = Session(id: UUID(), name: "Imported Session", tabs: [
+            SessionTab(title: "Imported", url: "https://imported-session.com")
+        ])
+
+        let mergeSnapshot = AppDataSnapshot(
+            exportedAt: Date(),
+            appVersion: "1.0",
+            schemaVersion: AppDataSnapshot.currentSchemaVersion,
+            cleanupRules: [existingRule, importedRule],
+            urlPatterns: [existingPattern, importedPattern],
+            sessions: [existingSession, importedSession],
+            closedTabHistory: [ClosedTabRecord(windowId: 2, url: "https://merge-history.com", title: "merge")],
+            statistics: TabStatistics(totalTabsClosed: 7)
+        )
+
+        let mergeURL = FileManager.default.temporaryDirectory.appendingPathComponent("merge-import.json")
+        try mergeSnapshot.toJSON().write(to: mergeURL)
+        let mergeResult = try AppDataManager.shared.importFromFile(at: mergeURL, replace: false)
+
+        XCTAssertEqual(mergeResult.cleanupRules, 1)
+        XCTAssertEqual(mergeResult.urlPatterns, 1)
+        XCTAssertEqual(mergeResult.sessions, 1)
+        XCTAssertTrue(mergeResult.statisticsImported)
+        XCTAssertEqual(CleanupRuleStore.shared.rules.count, 2)
+        XCTAssertEqual(URLPatternStore.shared.loadPatterns().count, 2)
+        XCTAssertEqual(SessionStore.shared.sessions.count, 2)
+        XCTAssertEqual(StatisticsStore.shared.load().totalTabsClosed, 12)
+
+        let replaceSnapshot = AppDataSnapshot(
+            exportedAt: Date(),
+            appVersion: "1.0",
+            schemaVersion: AppDataSnapshot.currentSchemaVersion,
+            cleanupRules: [importedRule],
+            urlPatterns: [importedPattern],
+            sessions: [importedSession],
+            closedTabHistory: [ClosedTabRecord(windowId: 3, url: "https://replace-history.com", title: "replace")],
+            statistics: TabStatistics(totalTabsClosed: 99)
+        )
+
+        let replaceURL = FileManager.default.temporaryDirectory.appendingPathComponent("replace-import.json")
+        try replaceSnapshot.toJSON().write(to: replaceURL)
+        let replaceResult = try AppDataManager.shared.importFromFile(at: replaceURL, replace: true)
+
+        XCTAssertEqual(replaceResult.cleanupRules, 1)
+        XCTAssertEqual(replaceResult.urlPatterns, 1)
+        XCTAssertEqual(replaceResult.sessions, 1)
+        XCTAssertEqual(replaceResult.closedTabHistory, 1)
+        XCTAssertTrue(replaceResult.statisticsImported)
+        XCTAssertEqual(CleanupRuleStore.shared.rules.count, 1)
+        XCTAssertEqual(URLPatternStore.shared.loadPatterns().count, 1)
+        XCTAssertEqual(SessionStore.shared.sessions.count, 1)
+        XCTAssertEqual(ClosedTabHistoryStore.shared.load().count, 1)
+        XCTAssertEqual(StatisticsStore.shared.load().totalTabsClosed, 99)
+    }
 }
 
 // MARK: - Helper Functions for Testing
