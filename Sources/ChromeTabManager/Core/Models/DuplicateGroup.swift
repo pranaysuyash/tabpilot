@@ -1,7 +1,7 @@
 import Foundation
 
 struct DuplicateGroup: Identifiable, Sendable {
-    let id = UUID()
+    var id: String { normalizedUrl }
     let normalizedUrl: String
     let displayUrl: String
     var tabs: [TabInfo]

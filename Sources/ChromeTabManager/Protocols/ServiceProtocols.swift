@@ -33,4 +33,5 @@ protocol LicenseProtocol {
     var isPro: Bool { get }
 }
 
+@MainActor
 extension LicenseManager: LicenseProtocol {}

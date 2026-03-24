@@ -1,7 +1,7 @@
 import Foundation
 
 struct WindowInfo: Identifiable, Sendable {
-    let id = UUID()
+    var id: Int { windowId }
     let windowId: Int
     let tabCount: Int
     var tabs: [TabInfo]

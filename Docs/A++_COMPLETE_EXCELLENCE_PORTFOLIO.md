@@ -69,7 +69,7 @@ See individual roadmap files for sprint-level detail.
 
 ### Option 1: Start Implementation
 
-1. Begin with [A++_TESTING_ROADMAP.md](/Users/pranay/Projects/chrome-tab-manager-swift/Docs/A++_TESTING_ROADMAP.md)
+1. Begin with [A++_TESTING_ROADMAP.md](./A++_TESTING_ROADMAP.md)
 2. Set up testing infrastructure
 3. Write first tests
 4. Review weekly progress
@@ -99,40 +99,40 @@ See individual roadmap files for sprint-level detail.
 - Current security grade: A- (85/100)
 - Target security grade: A++ (98/100)
 - Recommended path: Phase 1 security foundation first (10-12 days), then phase in advanced features
-- Detailed plan: [A++_SECURITY_ROADMAP.md](/Users/pranay/Projects/chrome-tab-manager-swift/Docs/A++_SECURITY_ROADMAP.md)
+- Detailed plan: [A++_SECURITY_ROADMAP.md](./A++_SECURITY_ROADMAP.md)
 
 ## Complete File Index
 
 ### Security
-1. [SECURITY_IMPLEMENTATION.md](/Users/pranay/Projects/chrome-tab-manager-swift/Docs/SECURITY_IMPLEMENTATION.md)
-2. [A++_SECURITY_ROADMAP.md](/Users/pranay/Projects/chrome-tab-manager-swift/Docs/A++_SECURITY_ROADMAP.md)
+1. [SECURITY_IMPLEMENTATION.md](./SECURITY_IMPLEMENTATION.md)
+2. [A++_SECURITY_ROADMAP.md](./A++_SECURITY_ROADMAP.md)
 
 ### Core Quality
-3. [A++_CONCURRENCY_ROADMAP.md](/Users/pranay/Projects/chrome-tab-manager-swift/Docs/A++_CONCURRENCY_ROADMAP.md)
-4. [A++_PERFORMANCE_ROADMAP.md](/Users/pranay/Projects/chrome-tab-manager-swift/Docs/A++_PERFORMANCE_ROADMAP.md)
-5. [A++_ARCHITECTURE_ROADMAP.md](/Users/pranay/Projects/chrome-tab-manager-swift/Docs/A++_ARCHITECTURE_ROADMAP.md)
+3. [A++_CONCURRENCY_ROADMAP.md](./A++_CONCURRENCY_ROADMAP.md)
+4. [A++_PERFORMANCE_ROADMAP.md](./A++_PERFORMANCE_ROADMAP.md)
+5. [A++_ARCHITECTURE_ROADMAP.md](./A++_ARCHITECTURE_ROADMAP.md)
 
 ### Operations
-6. [A++_DATA_FLOW_ROADMAP.md](/Users/pranay/Projects/chrome-tab-manager-swift/Docs/A++_DATA_FLOW_ROADMAP.md)
-7. [A++_INTEGRATIONS_ROADMAP.md](/Users/pranay/Projects/chrome-tab-manager-swift/Docs/A++_INTEGRATIONS_ROADMAP.md)
-8. [A++_FILE_HANDLING_ROADMAP.md](/Users/pranay/Projects/chrome-tab-manager-swift/Docs/A++_FILE_HANDLING_ROADMAP.md)
+6. [A++_DATA_FLOW_ROADMAP.md](./A++_DATA_FLOW_ROADMAP.md)
+7. [A++_INTEGRATIONS_ROADMAP.md](./A++_INTEGRATIONS_ROADMAP.md)
+8. [A++_FILE_HANDLING_ROADMAP.md](./A++_FILE_HANDLING_ROADMAP.md)
 
 ### Delivery
-9. [A++_BUILD_DISTRIBUTION_ROADMAP.md](/Users/pranay/Projects/chrome-tab-manager-swift/Docs/A++_BUILD_DISTRIBUTION_ROADMAP.md)
-10. [A++_DEPENDENCIES_CONFIG_ROADMAP.md](/Users/pranay/Projects/chrome-tab-manager-swift/Docs/A++_DEPENDENCIES_CONFIG_ROADMAP.md)
+9. [A++_BUILD_DISTRIBUTION_ROADMAP.md](./A++_BUILD_DISTRIBUTION_ROADMAP.md)
+10. [A++_DEPENDENCIES_CONFIG_ROADMAP.md](./A++_DEPENDENCIES_CONFIG_ROADMAP.md)
 
 ### User Experience
-11. [A++_UX_ROADMAP.md](/Users/pranay/Projects/chrome-tab-manager-swift/Docs/A++_UX_ROADMAP.md)
-12. [A++_ERROR_HANDLING_ROADMAP.md](/Users/pranay/Projects/chrome-tab-manager-swift/Docs/A++_ERROR_HANDLING_ROADMAP.md)
-13. [A++_ACCESSIBILITY_LOCALIZATION_ROADMAP.md](/Users/pranay/Projects/chrome-tab-manager-swift/Docs/A++_ACCESSIBILITY_LOCALIZATION_ROADMAP.md)
+11. [A++_UX_ROADMAP.md](./A++_UX_ROADMAP.md)
+12. [A++_ERROR_HANDLING_ROADMAP.md](./A++_ERROR_HANDLING_ROADMAP.md)
+13. [A++_ACCESSIBILITY_LOCALIZATION_ROADMAP.md](./A++_ACCESSIBILITY_LOCALIZATION_ROADMAP.md)
 
 ### Observability
-14. [A++_MONITORING_ROADMAP.md](/Users/pranay/Projects/chrome-tab-manager-swift/Docs/A++_MONITORING_ROADMAP.md)
+14. [A++_MONITORING_ROADMAP.md](./A++_MONITORING_ROADMAP.md)
 
 ### Quality
-15. [A++_TESTING_ROADMAP.md](/Users/pranay/Projects/chrome-tab-manager-swift/Docs/A++_TESTING_ROADMAP.md)
+15. [A++_TESTING_ROADMAP.md](./A++_TESTING_ROADMAP.md)
 
 ### Strategy
-16. [A++_EXCELLENCE_MASTER_ROADMAP.md](/Users/pranay/Projects/chrome-tab-manager-swift/Docs/A++_EXCELLENCE_MASTER_ROADMAP.md)
-17. [A++_IMPLEMENTATION_SUMMARY.md](/Users/pranay/Projects/chrome-tab-manager-swift/Docs/A++_IMPLEMENTATION_SUMMARY.md)
-18. [A++_COMPLETE_EXCELLENCE_PORTFOLIO.md](/Users/pranay/Projects/chrome-tab-manager-swift/Docs/A++_COMPLETE_EXCELLENCE_PORTFOLIO.md)
+16. [A++_EXCELLENCE_MASTER_ROADMAP.md](./A++_EXCELLENCE_MASTER_ROADMAP.md)
+17. [A++_IMPLEMENTATION_SUMMARY.md](./A++_IMPLEMENTATION_SUMMARY.md)
+18. [A++_COMPLETE_EXCELLENCE_PORTFOLIO.md](./A++_COMPLETE_EXCELLENCE_PORTFOLIO.md)

@@ -93,7 +93,7 @@ actor FilterActor {
                 }
             }
             
-            index[group.id.uuidString] = terms
+            index[group.id] = terms
         }
         
         return index

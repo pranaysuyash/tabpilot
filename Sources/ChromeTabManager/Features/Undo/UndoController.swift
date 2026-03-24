@@ -123,8 +123,8 @@ final class UndoController {
         undoTimeRemaining -= 1
         
         if undoTimeRemaining <= 0 {
-            undoCountdownTimer?.invalidate()
-            undoCountdownTimer = nil
+            undoTimeRemaining = 0
+            clearUndo()
         }
     }
     

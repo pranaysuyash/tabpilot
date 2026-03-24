@@ -13,7 +13,7 @@ struct ArchiveCreatedEvent: Event, Sendable {
 }
 
 @MainActor
-final class EventBus: Sendable {
+final class EventBus {
     static let shared = EventBus()
 
     private var subscribers: [ObjectIdentifier: [UUID: (any Event) -> Void]] = [:]

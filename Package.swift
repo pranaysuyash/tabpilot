@@ -3,6 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "ChromeTabManager",
+    // Note: This package requires macOS 14+ due to APIs/features used by the app.
     platforms: [.macOS(.v14)],
     dependencies: [],
     targets: [

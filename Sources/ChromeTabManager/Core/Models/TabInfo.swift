@@ -1,5 +1,4 @@
 import Foundation
-import SwiftUI
 
 struct TabInfo: Identifiable, Hashable, Sendable {
     let id: String
@@ -9,8 +8,6 @@ struct TabInfo: Identifiable, Hashable, Sendable {
     var url: String
     let openedAt: Date
     
-    private let _cachedDomain: String
-    
     init(id: String, windowId: Int, tabIndex: Int, title: String, url: String, openedAt: Date) {
         self.id = id
         self.windowId = windowId
@@ -18,13 +15,6 @@ struct TabInfo: Identifiable, Hashable, Sendable {
         self.title = title
         self.url = url
         self.openedAt = openedAt
-        
-        if let components = URL(string: url),
-           let host = components.host {
-            self._cachedDomain = host.replacingOccurrences(of: "www.", with: "")
-        } else {
-            self._cachedDomain = String(url.prefix(50))
-        }
     }
     
     var ageDescription: String {
@@ -48,7 +38,14 @@ struct TabInfo: Identifiable, Hashable, Sendable {
     }
     
     var domain: String {
-        _cachedDomain
+        Self.domain(from: url)
+    }
+
+    private static func domain(from url: String) -> String {
+        if let components = URL(string: url), let host = components.host {
+            return host.replacingOccurrences(of: "www.", with: "")
+        }
+        return String(url.prefix(50))
     }
     
     static func == (lhs: TabInfo, rhs: TabInfo) -> Bool {
@@ -68,6 +65,12 @@ extension TabInfo {
     
     var isHighValueDomain: Bool {
         let highValue = ["github.com", "google.com", "stackoverflow.com", "linear.app", "figma.com"]
-        return highValue.contains { domain.contains($0) }
+        return highValue.contains { matchesHighValueDomain(domain: domain, highValue: $0) }
+    }
+
+    private func matchesHighValueDomain(domain: String, highValue: String) -> Bool {
+        let normalizedDomain = domain.lowercased()
+        let normalizedHighValue = highValue.lowercased()
+        return normalizedDomain == normalizedHighValue || normalizedDomain.hasSuffix("." + normalizedHighValue)
     }
 }

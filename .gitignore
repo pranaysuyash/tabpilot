@@ -27,11 +27,11 @@ DerivedData
 .build-*/
 .build-clean/
 Packages/
-*.xcodeproj
+Artifacts/
+.agent/
 !*.xcodeproj/project.pbxproj
 !*.xcodeproj/xcshareddata/
 .swiftpm/
-*.xcodeproj
 xcuserdata/
 *.xcodeproj/*
 !*.xcodeproj/project.pbxproj
@@ -68,11 +68,6 @@ Carthage/Build
 *.zip
 *.dmg
 *.ipa
-
-# Git
-.git/
-.gitignore
-.gitattributes
 
 # Environment
 .env

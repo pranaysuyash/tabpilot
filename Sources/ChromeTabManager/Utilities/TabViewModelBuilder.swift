@@ -6,6 +6,8 @@ typealias TabViewModel = AppViewModel
 final class TabViewModelBuilder {
     @MainActor
     func build() -> AppViewModel {
-        return AppViewModel()
+        let viewModel = AppViewModel()
+        viewModel.wireUpControllers()
+        return viewModel
     }
 }

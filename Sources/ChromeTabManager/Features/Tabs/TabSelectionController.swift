@@ -1,5 +1,4 @@
 import SwiftUI
-import Combine
 
 @MainActor
 @Observable
@@ -8,7 +7,9 @@ final class TabSelectionController {
     var selectedTabIds: Set<String> = []
     
     // MARK: - Search & Filter State
-    var searchQuery: String = ""
+    var searchQuery: String = "" {
+        didSet { scheduleSearchDebounce() }
+    }
     private(set) var debouncedSearchQuery: String = ""
     private(set) var filteredDuplicates: [DuplicateGroup] = []
     
@@ -18,21 +19,24 @@ final class TabSelectionController {
     }
     
     // MARK: - Dependencies
-    private var cancellables: Set<AnyCancellable> = []
     private let filteredResultsCache = LRUCache<FilterCacheKey, [DuplicateGroup]>(maxSize: 50)
     private var filterTask: Task<Void, Never>?
+    private var searchDebounceTask: Task<Void, Never>?
     
     // MARK: - Closure-based Provider (for cross-controller access)
     private var _duplicateGroupsProvider: (() -> [DuplicateGroup])?
     
     var duplicateGroupsProvider: (() -> [DuplicateGroup])? {
         get { _duplicateGroupsProvider }
-        set { _duplicateGroupsProvider = newValue }
+        set {
+            _duplicateGroupsProvider = newValue
+            updateFilteredDuplicates()
+        }
     }
     
     // MARK: - Initialization
     init() {
-        setupSearchDebounce()
+        updateFilteredDuplicates()
     }
     
     convenience init(duplicateGroupsProvider: @escaping () -> [DuplicateGroup]) {
@@ -45,17 +49,15 @@ final class TabSelectionController {
     }
     
     // MARK: - Debounced Search
-    private func setupSearchDebounce() {
-        Timer.publish(every: 0.2, on: .main, in: .common)
-            .autoconnect()
-            .sink { [weak self] _ in
-                guard let self = self else { return }
-                if self.searchQuery != self.debouncedSearchQuery {
-                    self.debouncedSearchQuery = self.searchQuery
-                    self.invalidateDuplicateCache()
-                }
-            }
-            .store(in: &cancellables)
+    private func scheduleSearchDebounce() {
+        searchDebounceTask?.cancel()
+        searchDebounceTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 200_000_000)
+            guard let self = self, !Task.isCancelled else { return }
+            guard self.searchQuery != self.debouncedSearchQuery else { return }
+            self.debouncedSearchQuery = self.searchQuery
+            self.invalidateDuplicateCache()
+        }
     }
     
     // MARK: - Duplicate Access
@@ -77,17 +79,16 @@ final class TabSelectionController {
     }
     
     var duplicateGroupsByWindow: [DuplicateGroup] {
-        let windowIds = Set(duplicateGroups.flatMap { $0.tabs.map { $0.windowId } }).sorted()
-        var result: [DuplicateGroup] = []
-        
-        for windowId in windowIds {
-            let windowGroups = duplicateGroups.filter { group in
-                group.tabs.contains { $0.windowId == windowId }
+        var groupsByWindow: [Int: [DuplicateGroup]] = [:]
+
+        for group in duplicateGroups {
+            let windowIds = Set(group.tabs.map { $0.windowId })
+            for windowId in windowIds {
+                groupsByWindow[windowId, default: []].append(group)
             }
-            result.append(contentsOf: windowGroups)
         }
-        
-        return result
+
+        return groupsByWindow.keys.sorted().flatMap { groupsByWindow[$0] ?? [] }
     }
     
     var duplicateGroupsByDomain: [DuplicateGroup] {

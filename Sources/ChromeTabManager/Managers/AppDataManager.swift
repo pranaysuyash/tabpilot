@@ -1,5 +1,16 @@
 import Foundation
 
+enum AppDataImportError: LocalizedError {
+    case unsupportedSchemaVersion(imported: Int, supported: Int)
+
+    var errorDescription: String? {
+        switch self {
+        case let .unsupportedSchemaVersion(imported, supported):
+            return "Unsupported backup schema version \(imported). This app supports up to version \(supported)."
+        }
+    }
+}
+
 // MARK: - App Data Export Format
 
 /// Universal app data export/import container.
@@ -70,11 +81,18 @@ final class AppDataManager {
     func importFromFile(at url: URL, replace: Bool = false) throws -> ImportResult {
         let data = try Data(contentsOf: url)
         let imported = try AppDataSnapshot.fromJSON(data)
-        return apply(imported, replace: replace)
+        return try apply(imported, replace: replace)
     }
 
     @discardableResult
-    private func apply(_ snapshot: AppDataSnapshot, replace: Bool) -> ImportResult {
+    private func apply(_ snapshot: AppDataSnapshot, replace: Bool) throws -> ImportResult {
+        guard snapshot.schemaVersion <= AppDataSnapshot.currentSchemaVersion else {
+            throw AppDataImportError.unsupportedSchemaVersion(
+                imported: snapshot.schemaVersion,
+                supported: AppDataSnapshot.currentSchemaVersion
+            )
+        }
+
         var added = ImportResult()
 
         // Cleanup rules
@@ -107,19 +125,61 @@ final class AppDataManager {
         } else {
             let existingSessions = Set(SessionStore.shared.sessions.map { $0.id })
             let newSessions = snapshot.sessions.filter { !existingSessions.contains($0.id) }
-            SessionStore.shared.sessions.append(contentsOf: newSessions)
+            SessionStore.shared.appendSessions(newSessions)
             added.sessions = newSessions.count
         }
 
-        // Closed tab history (always merge, never replace — history is additive)
-        let existingHistory = Set(ClosedTabHistoryStore.shared.load().map { $0.id })
-        let newHistory = snapshot.closedTabHistory.filter { !existingHistory.contains($0.id) }
-        for record in newHistory {
-            ClosedTabHistoryStore.shared.add(record)
+        // Closed tab history
+        if replace {
+            ClosedTabHistoryStore.shared.save(snapshot.closedTabHistory)
+            added.closedTabHistory = snapshot.closedTabHistory.count
+        } else {
+            let existingHistory = Set(ClosedTabHistoryStore.shared.load().map { $0.id })
+            let newHistory = snapshot.closedTabHistory.filter { !existingHistory.contains($0.id) }
+            for record in newHistory {
+                ClosedTabHistoryStore.shared.add(record)
+            }
+            added.closedTabHistory = newHistory.count
         }
-        added.closedTabHistory = newHistory.count
+
+        // Statistics
+        if replace {
+            StatisticsStore.shared.save(snapshot.statistics ?? TabStatistics())
+            added.statisticsImported = snapshot.statistics != nil
+        } else if let importedStats = snapshot.statistics {
+            let mergedStats = mergeStatistics(current: StatisticsStore.shared.load(), imported: importedStats)
+            StatisticsStore.shared.save(mergedStats)
+            added.statisticsImported = true
+        }
 
         return added
+    }
+
+    private func mergeStatistics(current: TabStatistics, imported: TabStatistics) -> TabStatistics {
+        var merged = current
+        merged.totalTabsClosed += imported.totalTabsClosed
+        merged.duplicateTabsClosed += imported.duplicateTabsClosed
+        merged.sessionsCount += imported.sessionsCount
+        merged.totalSavingsSeconds += imported.totalSavingsSeconds
+        merged.lastSessionDate = [current.lastSessionDate, imported.lastSessionDate].compactMap { $0 }.max()
+
+        for (domain, count) in imported.mostClosedDomains {
+            merged.mostClosedDomains[domain, default: 0] += count
+        }
+
+        merged.tabDebtHistory.append(contentsOf: imported.tabDebtHistory)
+        if merged.tabDebtHistory.count > 30 {
+            merged.tabDebtHistory = Array(merged.tabDebtHistory.suffix(30))
+        }
+
+        if let importedLastDate = imported.lastRecordedDate,
+           importedLastDate > (merged.lastRecordedDate ?? .distantPast) {
+            merged.lastRecordedDate = imported.lastRecordedDate
+            merged.lastRecordedTabCount = imported.lastRecordedTabCount
+            merged.tabDebtScore = imported.tabDebtScore
+        }
+
+        return merged
     }
 }
 
@@ -128,10 +188,10 @@ struct ImportResult {
     var urlPatterns = 0
     var sessions = 0
     var closedTabHistory = 0
-    var archiveEntries = 0
+    var statisticsImported = false
 
     var totalImported: Int {
-        cleanupRules + urlPatterns + sessions + closedTabHistory + archiveEntries
+        cleanupRules + urlPatterns + sessions + closedTabHistory + (statisticsImported ? 1 : 0)
     }
 
     var summary: String {
@@ -140,6 +200,7 @@ struct ImportResult {
         if urlPatterns > 0 { parts.append("\(urlPatterns) patterns") }
         if sessions > 0 { parts.append("\(sessions) sessions") }
         if closedTabHistory > 0 { parts.append("\(closedTabHistory) history entries") }
+        if statisticsImported { parts.append("statistics") }
         return parts.isEmpty ? "Nothing new imported" : "Imported: \(parts.joined(separator: ", "))"
     }
 }

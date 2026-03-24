@@ -1,9 +1,9 @@
 import Foundation
+import Combine
 
 @MainActor
-@Observable
-final class LicenseController {
-    var isLicensed: Bool { LicenseManager.shared.isLicensed }
+final class LicenseController: ObservableObject {
+    @Published private(set) var isLicensed: Bool
     var isTrial: Bool { !isLicensed }
     
     var licenseType: String {
@@ -11,26 +11,45 @@ final class LicenseController {
     }
     
     var expirationDate: Date? { nil }
-    var isLoading = false
-    var errorMessage: String?
-    var freeClosesRemaining: Int { LicenseManager.shared.freeClosesRemaining }
+    @Published var isLoading = false
+    @Published var errorMessage: String?
+    @Published private(set) var freeClosesRemaining: Int
+
+    private let licenseManager: LicenseManager
+    private var cancellables: Set<AnyCancellable> = []
+
+    init(licenseManager: LicenseManager = .shared) {
+        self.licenseManager = licenseManager
+        self.isLicensed = licenseManager.isLicensed
+        self.freeClosesRemaining = licenseManager.freeClosesRemaining
+
+        licenseManager.$isLicensed
+            .combineLatest(licenseManager.$dailyCloseCount)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _, _ in
+                self?.refreshFromManager()
+            }
+            .store(in: &cancellables)
+    }
     
     func purchase() async {
         isLoading = true
         errorMessage = nil
-        await LicenseManager.shared.purchasePro()
+        _ = await licenseManager.purchasePro()
+        refreshFromManager()
         isLoading = false
     }
     
     func restore() async {
         isLoading = true
         errorMessage = nil
-        await LicenseManager.shared.restorePurchases()
+        _ = await licenseManager.restorePurchases()
+        refreshFromManager()
         isLoading = false
     }
     
     func checkStatus() {
-        LicenseManager.shared.objectWillChange.send()
+        refreshFromManager()
     }
     
     func canCloseTabs(requested: Int) -> Bool {
@@ -39,6 +58,12 @@ final class LicenseController {
     }
     
     func recordCloses(_ count: Int) {
-        LicenseManager.shared.recordCloses(count)
+        licenseManager.recordCloses(count)
+        refreshFromManager()
+    }
+
+    private func refreshFromManager() {
+        isLicensed = licenseManager.isLicensed
+        freeClosesRemaining = licenseManager.freeClosesRemaining
     }
 }

@@ -15,44 +15,44 @@ final class AppViewModel: ObservableObject {
     let licenseController: LicenseController
     
     // MARK: - UI State
-    var toastMessage: String?
-    var showToast = false
-    var showPaywall = false
-    var showPreferences = false
-    var isPreferencesOpen = false
-    var showReviewPlan = false
-    var showArchiveHistory = false
-    var showConfirmation = false
-    var confirmationTitle = ""
-    var confirmationMessage = ""
+    @Published var toastMessage: String?
+    @Published var showToast = false
+    @Published var showPaywall = false
+    @Published var showPreferences = false
+    @Published var isPreferencesOpen = false
+    @Published var showReviewPlan = false
+    @Published var showArchiveHistory = false
+    @Published var showConfirmation = false
+    @Published var confirmationTitle = ""
+    @Published var confirmationMessage = ""
     
     // MARK: - Import/Export
-    var importPreviewTabs: [ImportTab] = []
-    var isImportResultPresented = false
-    var exportFormat: ExportFormat = .json
+    @Published var importPreviewTabs: [ImportTab] = []
+    @Published var isImportResultPresented = false
+    @Published var exportFormat: ExportFormat = .json
     
     // MARK: - Protected Domains
-    var protectedDomains: [String] = ["mail.google.com", "calendar.google.com"]
-    var newProtectedDomain: String = ""
+    @Published var protectedDomains: [String] = ["mail.google.com", "calendar.google.com"]
+    @Published var newProtectedDomain: String = ""
     
     // MARK: - Recent Archives
-    var recentArchives: [URL] = []
+    @Published var recentArchives: [URL] = []
     
     // MARK: - URL Patterns
-    var urlPatterns: [URLPattern] = []
+    @Published var urlPatterns: [URLPattern] = []
     
     // MARK: - Sessions
-    var sessions: [Session] = []
+    @Published var sessions: [Session] = []
     
     // MARK: - Cleanup Rules
-    var cleanupRules: [CleanupRule] = []
+    @Published var cleanupRules: [CleanupRule] = []
     
     // MARK: - Review Plan
-    var reviewPlanItems: [ReviewPlanItem] = []
-    var reviewPlanKeepPolicy = ""
+    @Published var reviewPlanItems: [ReviewPlanItem] = []
+    @Published var reviewPlanKeepPolicy = ""
     
     // MARK: - Closed Tab History
-    var closedTabHistory: ClosedTabHistoryStore?
+    @Published var closedTabHistory: ClosedTabHistoryStore?
 
     // MARK: - Private State
     private var confirmationAction: (() async -> Void)?
@@ -167,6 +167,7 @@ final class AppViewModel: ObservableObject {
         self.eventBus = .shared
         
         setupNotifications()
+        wireUpControllers()
         loadRecentArchives()
         loadProtectedDomains()
         Task { @MainActor in AutoCleanupManager.shared.setup() }
@@ -198,7 +199,7 @@ final class AppViewModel: ObservableObject {
         NotificationCenter.default.publisher(for: .closeSelected)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
-                Task { await self?.requestCloseSelected() }
+                Task { self?.requestCloseSelected() }
             }
             .store(in: &cancellables)
         
@@ -212,7 +213,7 @@ final class AppViewModel: ObservableObject {
         NotificationCenter.default.publisher(for: .reviewPlan)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
-                Task { await self?.requestCloseAllDuplicates(keepOldest: true) }
+                Task { self?.requestCloseAllDuplicates(keepOldest: true) }
             }
             .store(in: &cancellables)
 
@@ -253,10 +254,12 @@ final class AppViewModel: ObservableObject {
     // MARK: - Scan Actions
     func scan() async {
         await scanController.scan()
+        tabSelectionController.invalidateDuplicateCache()
     }
     
     func incrementalScan() async {
         await scanController.incrementalScan()
+        tabSelectionController.invalidateDuplicateCache()
     }
     
     // MARK: - Selection Actions
@@ -690,17 +693,20 @@ final class AppViewModel: ObservableObject {
         
         let tabsToMove = tabs.filter { tabIds.contains($0.id) }
         guard !tabsToMove.isEmpty else { return }
-        
-        let bySourceWindow = Dictionary(grouping: tabsToMove) { $0.windowId }
-        
+
         var opened = 0
+        var movedBySourceWindow: [Int: [(url: String, title: String)]] = [:]
         for tab in tabsToMove {
             let success = await ChromeController.shared.openTab(windowId: targetWindowId, url: tab.url)
-            if success { opened += 1 }
+            if success {
+                opened += 1
+                if tab.windowId != targetWindowId {
+                    movedBySourceWindow[tab.windowId, default: []].append((url: tab.url, title: tab.title))
+                }
+            }
         }
-        
-        for (sourceWindowId, windowTabs) in bySourceWindow where sourceWindowId != targetWindowId {
-            let targets = windowTabs.map { (url: $0.url, title: $0.title) }
+
+        for (sourceWindowId, targets) in movedBySourceWindow {
             _ = await closeUseCase.execute(windowId: sourceWindowId, targets: targets)
         }
         
