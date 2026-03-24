@@ -1,8 +1,94 @@
+# macOS
 .DS_Store
-/.build
-/Packages
+.AppleDouble
+.LSOverride
+._*
+
+# Xcode
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata
+*.xccheckout
+*.moved-aside
+DerivedData
+*.hmap
+*.ipa
+*.xcuserstate
+**/.xcode/*.xcworkspace/**/contents.xcworkspacedata
+
+# Swift Package Manager
+.build/
+.build-*/
+.build-clean/
+Packages/
+Artifacts/
+.agent/
+!*.xcodeproj/project.pbxproj
+!*.xcodeproj/xcshareddata/
+.swiftpm/
 xcuserdata/
-DerivedData/
-.swiftpm/configuration/registries.json
-.swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
-.netrc
+*.xcodeproj/*
+!*.xcodeproj/project.pbxproj
+!*.xcodeproj/xcshareddata/
+
+# CocoaPods
+Pods/
+
+# Carthage
+Carthage/Build
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+*.swp
+*.swo
+*~
+
+# Build outputs
+/build
+/DerivedData
+*.app
+*.appex
+*.dSYM
+*.framework
+*.kext
+*.moved-aside
+
+# Archives
+*.tar.gz
+*.zip
+*.dmg
+*.ipa
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+*~
+
+# Test coverage
+*.gcda
+*.gcno
+Coverage.profdata
+
+# Snapshots
+*.snapshots/

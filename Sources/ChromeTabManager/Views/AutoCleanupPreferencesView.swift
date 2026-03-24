@@ -1,0 +1,108 @@
+import SwiftUI
+
+struct AutoCleanupPreferencesView: View {
+    @State private var isEnabled = false
+    @State private var checkInterval: Double = 15
+    @State private var rules: [CleanupRule] = []
+    @ObservedObject private var manager = AutoCleanupManager.shared
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Text("Auto-Cleanup Settings")
+                .font(.headline)
+
+            Toggle("Enable Auto-Cleanup", isOn: $isEnabled)
+                .onChange(of: isEnabled) { newValue in
+                    AutoCleanupManager.shared.isEnabled = newValue
+                }
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Check Interval: \(Int(checkInterval)) minutes")
+                Slider(value: $checkInterval, in: 5...60, step: 5)
+                    .onChange(of: checkInterval) { newValue in
+                        AutoCleanupManager.shared.checkInterval = newValue * 60
+                    }
+            }
+
+            // Next run / last run status
+            if isEnabled {
+                HStack(spacing: 20) {
+                    if let next = manager.nextCheckAt {
+                        Label("Next: \(next, style: .relative)", systemImage: "clock")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    if let last = manager.lastCheckAt {
+                        Label("Last: \(last, style: .relative)", systemImage: "checkmark.circle")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    if manager.lastCleanedCount > 0 {
+                        Label("\(manager.lastCleanedCount) tabs cleaned", systemImage: "trash")
+                            .font(.caption)
+                            .foregroundStyle(.green)
+                    }
+                }
+            }
+
+            Divider()
+
+            Text("Cleanup Rules")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
+            if rules.isEmpty {
+                Text("No cleanup rules configured")
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding()
+            } else {
+                List {
+                    ForEach(rules) { rule in
+                        HStack {
+                            VStack(alignment: .leading) {
+                                Text(rule.name)
+                                    .font(.subheadline)
+                                Text(rule.pattern.pattern)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            Spacer()
+
+                            if rule.enabled {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(.green)
+                            }
+                        }
+                    }
+                }
+            }
+
+            HStack {
+                Button("Add Rule") {
+                }
+
+                Spacer()
+
+                Button("Refresh") {
+                    loadRules()
+                }
+            }
+        }
+        .padding()
+        .onAppear {
+            loadSettings()
+            loadRules()
+        }
+    }
+
+    private func loadSettings() {
+        isEnabled = AutoCleanupManager.shared.isEnabled
+        checkInterval = AutoCleanupManager.shared.checkInterval / 60
+    }
+
+    private func loadRules() {
+        rules = CleanupRuleStore.shared.rules
+    }
+}

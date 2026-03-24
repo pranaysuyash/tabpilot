@@ -15,11 +15,28 @@ struct PreferencesView: View {
                 .tabItem {
                     Label("Duplicates", systemImage: "doc.on.doc")
                 }
+
+            ExportImportPreferences(viewModel: viewModel)
+                .tabItem {
+                    Label("Export/Import", systemImage: "square.and.arrow.up.on.square")
+                }
             
-            if viewModel.licenseManager.isPro {
-                ProPreferences(viewModel: viewModel)
+            if viewModel.licenseManager.isLicensed {
+                ProtectionPreferences(viewModel: viewModel)
                     .tabItem {
-                        Label("Pro", systemImage: "crown")
+                        Label("Protection", systemImage: "shield")
+                    }
+            }
+            
+            KeyboardShortcutsView()
+                .tabItem {
+                    Label("Shortcuts", systemImage: "keyboard")
+                }
+            
+            if viewModel.licenseManager.isLicensed {
+                AutoCleanupPreferencesView()
+                    .tabItem {
+                        Label("Auto-Cleanup", systemImage: "wand.and.stars")
                     }
             }
         }
@@ -108,7 +125,7 @@ struct DuplicatePreferences: View {
     }
 }
 
-struct ProPreferences: View {
+struct ProtectionPreferences: View {
     @ObservedObject var viewModel: TabManagerViewModel
     
     var body: some View {
@@ -145,5 +162,114 @@ struct ProPreferences: View {
             }
         }
         .formStyle(.grouped)
+    }
+}
+
+struct ExportImportPreferences: View {
+    @ObservedObject var viewModel: TabManagerViewModel
+
+    var body: some View {
+        Form {
+            Section("Defaults") {
+                Picker("Default export format", selection: Binding(
+                    get: { viewModel.defaultExportFormat },
+                    set: { viewModel.defaultExportFormat = $0 }
+                )) {
+                    ForEach(TabManagerViewModel.ExportFormat.allCases, id: \.self) { format in
+                        Text(format.rawValue).tag(format)
+                    }
+                }
+            }
+
+            Section("Archive Location") {
+                Text(viewModel.archiveDirectoryURL().path)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+
+                HStack {
+                    Button("Choose Location…") {
+                        viewModel.chooseArchiveDirectory()
+                    }
+                    Button("Open in Finder") {
+                        viewModel.openArchiveDirectoryInFinder()
+                    }
+                }
+            }
+
+            Section("Recent Archives") {
+                if viewModel.recentArchives.isEmpty {
+                    Text("No recent archives")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(viewModel.recentArchives, id: \.path) { archiveURL in
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(archiveURL.lastPathComponent)
+                                Text(archiveURL.path)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                            Spacer()
+                            Button("Open") {
+                                viewModel.openArchiveFile(archiveURL)
+                            }
+                            .buttonStyle(.borderless)
+                            Button("Delete") {
+                                viewModel.deleteArchiveFile(archiveURL)
+                            }
+                            .buttonStyle(.borderless)
+                            .foregroundStyle(.red)
+                        }
+                    }
+                }
+            }
+        }
+        .formStyle(.grouped)
+    }
+}
+
+struct KeyboardShortcutsView: View {
+    var body: some View {
+        Form {
+            Section("Global") {
+                ShortcutRow(action: "Scan Tabs", shortcut: "⌘R")
+                ShortcutRow(action: "Smart Select", shortcut: "⌘S")
+                ShortcutRow(action: "Close Selected", shortcut: "⌘W")
+                ShortcutRow(action: "Preferences", shortcut: "⌘,")
+            }
+            
+            Section("Selection") {
+                ShortcutRow(action: "Select All Except Oldest", shortcut: "⌘⇧O")
+                ShortcutRow(action: "Select All Except Newest", shortcut: "⌘⇧N")
+                ShortcutRow(action: "Clear Selection", shortcut: "Escape")
+            }
+            
+            Section("Navigation") {
+                ShortcutRow(action: "Filter/Search", shortcut: "⌘F")
+                ShortcutRow(action: "Focus Filter Field", shortcut: "⌘⇧F")
+            }
+        }
+        .formStyle(.grouped)
+    }
+}
+
+struct ShortcutRow: View {
+    let action: String
+    let shortcut: String
+    
+    var body: some View {
+        HStack {
+            Text(action)
+            Spacer()
+            Text(shortcut)
+                .font(.system(.body, design: .monospaced))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color(.controlBackgroundColor))
+                .clipShape(RoundedRectangle(cornerRadius: 4))
+        }
     }
 }
