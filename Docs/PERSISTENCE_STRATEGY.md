@@ -1,7 +1,8 @@
 # Persistence Strategy
 
-**Project:** Chrome Tab Manager  
+**Project:** TabPilot  
 **Last Updated:** 2026-03-23
+**Status:** All DATA fixes implemented
 
 ---
 
@@ -58,15 +59,123 @@
 
 ---
 
+## DATA Fix Implementations
+
+### DATA-001: State Duplication Eliminated
+`windows` and `duplicateGroups` are `@Published private(set)` with backing storage:
+
+```swift
+@Published private(set) var windows: [WindowInfo] = []
+@Published private(set) var duplicateGroups: [DuplicateGroup] = []
+```
+
+Single source of truth: `tabs` array.
+
+### DATA-002: Atomic Timestamp Updates
+`atomicallyProcessTabsWithTimestamps()` ensures timestamps and tabs stay in sync:
+
+```swift
+private func atomicallyProcessTabsWithTimestamps(_ scannedTabs: [TabInfo]) -> [TabInfo] {
+    // 1. Update timestamps for new tabs
+    // 2. Clean up timestamps for closed tabs  
+    // 3. Schedule debounced save
+    // 4. Return tabs with correct openedAt dates
+}
+```
+
+### DATA-004: URL Pattern Persistence
+`URLPatternStore` with thread-safe access via NSLock:
+
+```swift
+@MainActor
+final class URLPatternStore: @unchecked Sendable {
+    private let lock = NSLock()
+    
+    func loadPatterns() -> [URLPattern]
+    func savePatterns(_ patterns: [URLPattern])
+}
+```
+
+### DATA-006: AutoCleanup Race Condition Fix
+`AutoCleanupManager` is an actor with `isProcessing` guard:
+
+```swift
+actor AutoCleanupManager {
+    private var isProcessing = false
+    
+    func processTabsForCleanup(_ tabs: [TabInfo]) async -> [CleanupTask] {
+        guard !isProcessing else { return [] }
+        isProcessing = true
+        defer { isProcessing = false }
+        // ... process tabs
+    }
+}
+```
+
+### DATA-007: Error Handling in Stores
+All stores log errors and return graceful defaults:
+
+```swift
+func load() -> [ClosedTabRecord] {
+    do {
+        return try JSONDecoder().decode([ClosedTabRecord].self, from: data)
+    } catch {
+        print("ClosedTabHistoryStore: Failed to decode: \(error.localizedDescription)")
+        return []
+    }
+}
+```
+
+### DATA-009: Centralized State Observation
+Combine pipelines auto-update derived state:
+
+```swift
+private func setupDerivedStateObservation() {
+    $tabs
+        .dropFirst()
+        .debounce(for: .milliseconds(50), scheduler: RunLoop.main)
+        .sink { [weak self] _ in
+            self?.rebuildAllDerivedState()
+        }
+        .store(in: &cancellables)
+}
+
+private func rebuildAllDerivedState() {
+    buildWindows()
+    findDuplicates()
+    updateWidgetData()
+}
+```
+
+### DATA-010: Stable Tab IDs
+Tab IDs based on content hash, not position:
+
+```swift
+private func stableTabId(windowId: Int, tabIndex: Int, url: String, title: String) -> String {
+    let normalizedUrl = normalizeURL(url, stripQuery: false, filterTracking: true)
+    let contentString = "\(normalizedUrl)|\(title)"
+    let contentHash = String(contentString.hashValue)
+    return "tab-\(contentHash)-w\(windowId)-t\(tabIndex)"
+}
+```
+
+---
+
 ## Write Patterns
 
 ### Debounced writes (tab timestamps)
-Timestamps update on every scan. Batch-write with 2-second debounce to avoid hammering UserDefaults:
+Timestamps update on every scan. Batch-write with 2-second debounce:
 
 ```swift
-$tabs
-    .debounce(for: .seconds(2), scheduler: RunLoop.main)
-    .sink { [weak self] _ in self?.persistTimestamps() }
+private func scheduleTimestampSave() {
+    timestampsDirty = true
+    timestampSaveTimer?.invalidate()
+    timestampSaveTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: false) { [weak self] _ in
+        Task { @MainActor in
+            self?.saveTimestamps()
+        }
+    }
+}
 ```
 
 ### Immediate writes (rules, sessions, patterns)

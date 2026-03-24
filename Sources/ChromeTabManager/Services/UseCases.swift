@@ -1,17 +1,17 @@
 import Foundation
 
 @MainActor
-protocol ScanTabsUseCaseProtocol {
+protocol ScanTabsUseCaseProtocol: Sendable {
     func execute(progress: @escaping @Sendable (Int, String) -> Void) async throws -> (tabs: [TabInfo], telemetry: ScanTelemetry)
 }
 
 @MainActor
-protocol CloseTabsUseCaseProtocol {
+protocol CloseTabsUseCaseProtocol: Sendable {
     func execute(windowId: Int, targets: [(url: String, title: String)]) async -> (closed: Int, failed: Int, ambiguous: Int)
 }
 
 @MainActor
-protocol ExportTabsUseCaseProtocol {
+protocol ExportTabsUseCaseProtocol: Sendable {
     func export(tabs: [TabInfo], format: ExportManager.ExportFormat) -> String
     func exportDuplicates(groups: [DuplicateGroup], format: ExportManager.ExportFormat) -> String
 }

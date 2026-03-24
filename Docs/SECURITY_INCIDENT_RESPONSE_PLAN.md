@@ -1,6 +1,6 @@
 # Security Incident Response Plan
 
-This plan defines how Chrome Tab Manager responds to security incidents.
+This plan defines how TabPilot responds to security incidents.
 
 ## 1. Scope
 

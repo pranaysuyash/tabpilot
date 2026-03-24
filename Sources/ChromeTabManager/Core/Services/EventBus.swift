@@ -1,19 +1,19 @@
 import Foundation
 
-protocol Event {}
+protocol Event: Sendable {}
 
-struct TabClosedEvent: Event {
+struct TabClosedEvent: Event, Sendable {
     let tabId: String
     let timestamp: Date
 }
 
-struct ArchiveCreatedEvent: Event {
+struct ArchiveCreatedEvent: Event, Sendable {
     let archiveId: String
     let tabCount: Int
 }
 
 @MainActor
-final class EventBus {
+final class EventBus: Sendable {
     static let shared = EventBus()
 
     private var subscribers: [ObjectIdentifier: [UUID: (any Event) -> Void]] = [:]

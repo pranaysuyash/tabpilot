@@ -22,6 +22,9 @@ struct ToastView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .shadow(radius: 4)
                 .padding(.bottom, 20)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .accessibilityLabel(message)
+                .accessibilityAddTraits(.isStaticText)
             }
         }
     }
@@ -85,6 +88,9 @@ struct ActionButton: View {
             .clipShape(RoundedRectangle(cornerRadius: 6))
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(title)
+        .accessibilityHint("Selects tabs in this group based on '\(title)' strategy")
+        .accessibilityAddTraits(.isButton)
     }
 }
 
@@ -104,6 +110,9 @@ struct TabRow: View {
                 set: { _ in onToggle() }
             ))
             .toggleStyle(.checkbox)
+            .accessibilityLabel("Select \(tab.title)")
+            .accessibilityHint("Marks this tab for bulk close action")
+            .accessibilityValue(isSelected ? "selected" : "not selected")
             
             HStack(spacing: 4) {
                 if isOldest {
@@ -120,6 +129,7 @@ struct TabRow: View {
             }
             .font(.caption.bold())
             .frame(width: 80, alignment: .leading)
+            .accessibilityLabel(isOldest ? "First seen tab" : isNewest ? "Last seen tab" : "")
             
             VStack(alignment: .leading, spacing: 2) {
                 Text(tab.title)
@@ -136,6 +146,7 @@ struct TabRow: View {
                 Text(tab.ageDescription)
                     .font(.caption)
                     .foregroundStyle(ageColor)
+                    .accessibilityLabel("Opened \(tab.ageDescription) ago")
             }
             
             Button {
@@ -146,10 +157,16 @@ struct TabRow: View {
             }
             .buttonStyle(.plain)
             .help("Focus tab in Chrome")
+            .accessibilityLabel("Focus tab in Chrome")
+            .accessibilityHint("Switches to this tab in Chrome")
         }
         .padding(.vertical, 6)
         .background(isSelected ? Color.accentColor.opacity(0.1) : Color.clear)
         .clipShape(RoundedRectangle(cornerRadius: 6))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(tab.title), Window \(tab.windowId), Tab \(tab.tabIndex)\(isOldest ? ", first seen" : isNewest ? ", last seen" : "")")
+        .accessibilityValue(isSelected ? "selected" : "not selected")
+        .accessibilityHint("Double-tap to toggle selection")
     }
     
     var ageColor: Color {

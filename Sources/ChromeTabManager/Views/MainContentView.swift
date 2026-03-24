@@ -119,6 +119,8 @@ struct SuperUserView: View {
                             .frame(width: 200)
                             .focused($focusedField, equals: .search)
                             .help("Filter duplicates by title, URL, or domain (Cmd+F)")
+                            .accessibilityLabel("Filter duplicates")
+                            .accessibilityHint("Type to filter duplicate groups by title, URL, or domain")
                     }
                     
                     // View mode picker
@@ -132,6 +134,8 @@ struct SuperUserView: View {
                     .pickerStyle(.segmented)
                     .frame(width: 400)
                     .help("Change how duplicate tabs are grouped and displayed")
+                    .accessibilityLabel("Duplicate view mode")
+                    .accessibilityHint("Changes how duplicate tabs are grouped and displayed")
                     
                     Spacer()
                     
@@ -169,6 +173,8 @@ struct SuperUserView: View {
                         .buttonStyle(.bordered)
                         .tint(.red)
                         .help("Close the selected tabs. Undo is available for 30 seconds.")
+                        .accessibilityLabel("Close \(viewModel.selectedTabIds.count) selected tabs")
+                        .accessibilityHint("Closes the selected tabs. Undo is available for 30 seconds.")
                     }
                     
                     Button {
@@ -178,6 +184,8 @@ struct SuperUserView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .help("Review which tabs will be closed before applying changes. Matching rules can be changed in Preferences (Cmd+,).")
+                    .accessibilityLabel("Review cleanup plan")
+                    .accessibilityHint("Opens a review sheet showing which tabs will be closed before applying changes")
                 }
                 .padding()
                 .background(Color(.windowBackgroundColor))
@@ -204,6 +212,7 @@ struct SuperUserView: View {
                     .cornerRadius(12)
                     .shadow(radius: 20)
                     .padding()
+                    .animation(.spring(response: 0.35, dampingFraction: 0.8), value: viewModel.showReviewPlan)
             }
         }
         // Listen for Cmd+F notification to focus the search field
@@ -229,6 +238,8 @@ struct StandardUserView: View {
                     }
                 }
                 .pickerStyle(.segmented)
+                .accessibilityLabel("Duplicate view mode")
+                .accessibilityHint("Changes how duplicate tabs are grouped and displayed")
                 
                 Spacer()
             }

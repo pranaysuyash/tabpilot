@@ -1,4 +1,4 @@
-# Test Report - Chrome Tab Manager Fixes
+# Test Report - TabPilot Fixes
 
 ## Build Verification
 
@@ -136,7 +136,7 @@ cd /Users/pranay/Projects/chrome-tab-manager-swift
 
 Or open directly:
 ```bash
-open "Chrome Tab Manager.app"
+open "TabPilot.app"
 ```
 
 **First Launch:**

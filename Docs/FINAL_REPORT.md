@@ -1,4 +1,4 @@
-# Chrome Tab Manager - Final Implementation Report
+# TabPilot - Final Implementation Report
 
 ## Build Information
 - **Date**: 2026-03-21
@@ -157,7 +157,7 @@ cd /Users/pranay/Projects/chrome-tab-manager-swift
 
 Or open directly:
 ```bash
-open "Chrome Tab Manager.app"
+open "TabPilot.app"
 ```
 
 ### First Launch Setup

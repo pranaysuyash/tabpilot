@@ -280,7 +280,7 @@ enum LicenseError: Error {
 }
 
 struct PaywallCopy {
-    static let title = "Unlock Chrome Tab Manager"
+    static let title = "Unlock TabPilot"
     static let subtitle = "Buy once. Use forever."
     static let price = "$19.99"
 
