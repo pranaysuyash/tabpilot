@@ -25,6 +25,7 @@ DerivedData
 # Swift Package Manager
 .build/
 .build-*/
+.build-clean/
 Packages/
 *.xcodeproj
 !*.xcodeproj/project.pbxproj
