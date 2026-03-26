@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "TabPilot Time Tracker",
+  "version": "1.0.0",
+  "description": "Premium tab activity tracking and real-time behavioral analytics for power users.",
+  "permissions": [
+    "tabs",
+    "storage",
+    "idle",
+    "nativeMessaging"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "16": "icons/extension_icon_16.png",
+    "48": "icons/extension_icon_48.png",
+    "128": "icons/extension_icon_128.png"
+  },
+  "action": {
+    "default_icon": {
+      "16": "icons/extension_icon_16.png",
+      "48": "icons/extension_icon_48.png"
+    }
+  }
+}
