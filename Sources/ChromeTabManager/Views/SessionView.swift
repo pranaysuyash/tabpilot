@@ -10,6 +10,8 @@ struct SessionView: View {
     @State private var sessionToDelete: Session?
     @State private var sessionToRename: Session?
     @State private var renameText = ""
+    @State private var sessionToRestore: Session?
+    @State private var restoreOption: RestoreOptions = .addToOpen
     
     var body: some View {
         VStack(spacing: 0) {
@@ -47,6 +49,8 @@ struct SessionView: View {
                     } onRename: {
                         sessionToRename = session
                         renameText = session.name
+                    } onRestore: {
+                        sessionToRestore = session
                     }
                 }
                 .listStyle(.plain)
@@ -58,6 +62,16 @@ struct SessionView: View {
                 tabCount: viewModel.tabs.count
             ) { name in
                 sessionStore.saveCurrentTabs(viewModel.tabs, name: name)
+            }
+        }
+        .sheet(item: $sessionToRestore) { session in
+            RestoreOptionsSheet(session: session, selectedOption: $restoreOption) { option in
+                Task {
+                    let count = await sessionStore.restoreSession(session, option: option)
+                    if count > 0 {
+                        sessionStore.markOpened(session)
+                    }
+                }
             }
         }
         .alert("Rename Session", isPresented: Binding(
@@ -83,6 +97,7 @@ struct SessionRow: View {
     @ObservedObject var viewModel: TabManagerViewModel
     let onDelete: () -> Void
     let onRename: () -> Void
+    let onRestore: () -> Void
     
     @State private var isExpanded = false
     
@@ -115,7 +130,7 @@ struct SessionRow: View {
                 // Actions
                 HStack(spacing: 8) {
                     Button {
-                        Task { await restoreSession() }
+                        onRestore()
                     } label: {
                         Image(systemName: "arrow.counterclockwise.circle")
                     }
@@ -179,16 +194,6 @@ struct SessionRow: View {
         }
         .background(Color.clear)
     }
-    
-    private func restoreSession() async {
-        for tab in session.tabs {
-            let success = await ChromeController.shared.openTab(windowId: tab.windowId, url: tab.url)
-            if success {
-                try? await Task.sleep(nanoseconds: 200_000_000)
-            }
-        }
-        SessionStore.shared.markOpened(session)
-    }
 }
 
 // MARK: - Empty State
@@ -210,6 +215,111 @@ struct SessionEmptyState: View {
                 .frame(maxWidth: 300)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// MARK: - Restore Options Sheet
+
+struct RestoreOptionsSheet: View {
+    let session: Session
+    @Binding var selectedOption: RestoreOptions
+    let onRestore: (RestoreOptions) -> Void
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "arrow.counterclockwise.circle")
+                .font(.system(size: 40))
+                .foregroundStyle(.blue)
+            
+            Text("Restore Session")
+                .font(.title2.bold())
+            
+            Text("How would you like to restore \"\(session.name)\"?")
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            
+            VStack(alignment: .leading, spacing: 12) {
+                ForEach(RestoreOptions.allCases) { option in
+                    RestoreOptionRow(option: option, isSelected: selectedOption == option) {
+                        selectedOption = option
+                    }
+                }
+            }
+            .padding()
+            .background(Color.clear)
+            .overlay {
+                if selectedOption == .replaceOpen {
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.red.opacity(0.5), lineWidth: 1)
+                }
+            }
+            
+            if selectedOption == .replaceOpen {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                    Text("This will close all open tabs in Chrome before restoring.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(8)
+                .background(Color.red.opacity(0.1))
+                .cornerRadius(8)
+            }
+            
+            HStack(spacing: 12) {
+                Button("Cancel") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                
+                Button("Restore") {
+                    onRestore(selectedOption)
+                    dismiss()
+                }
+                .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(40)
+        .frame(width: 420)
+    }
+}
+
+struct RestoreOptionRow: View {
+    let option: RestoreOptions
+    let isSelected: Bool
+    let onSelect: () -> Void
+    
+    var body: some View {
+        Button(action: onSelect) {
+            HStack(spacing: 12) {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.title3)
+                    .foregroundStyle(isSelected ? .blue : .secondary)
+                
+                Image(systemName: option.icon)
+                    .font(.title3)
+                    .foregroundStyle(isSelected ? .blue : .secondary)
+                    .frame(width: 24)
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(option.rawValue)
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                    Text(option.description)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                
+                Spacer()
+            }
+            .padding(.vertical, 8)
+            .padding(.horizontal, 12)
+            .background(isSelected ? Color.blue.opacity(0.1) : Color.clear)
+            .cornerRadius(8)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(option.rawValue): \(option.description)")
     }
 }
 

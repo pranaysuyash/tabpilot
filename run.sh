@@ -4,7 +4,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 usage() {
-    echo "Chrome Tab Manager - Build & Launch"
+    echo "TabPilot - Build & Launch"
     echo "==================================="
     echo ""
     echo "Usage: $0 [mode]"
@@ -39,7 +39,7 @@ else
     MODE="bundle"
 fi
 
-APP_NAME="Chrome Tab Manager"
+APP_NAME="TabPilot"
 APP_PATH="$APP_NAME.app"
 BUILD_BIN=".build/release/ChromeTabManager"
 
@@ -74,7 +74,7 @@ if [[ "$MODE" == "bundle" ]]; then
     <key>CFBundleIdentifier</key>
     <string>com.pranay.chrometabmanager</string>
     <key>CFBundleName</key>
-    <string>Chrome Tab Manager</string>
+    <string>TabPilot</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>

@@ -9,6 +9,7 @@
 //   - Host reads from stdin, writes responses to stdout
 
 import Foundation
+import ChromeTabManager
 
 // ── Configuration ────────────────────────────────────────────────
 
@@ -58,19 +59,6 @@ func writeMessage(_ dict: [String: Any]) {
 }
 
 // ── Data Persistence ─────────────────────────────────────────────
-
-struct TabTimeData: Codable {
-    var lastUpdated: Double
-    var date: String
-    var domainTime: [String: Double]          // domain → total milliseconds
-    var tabDetails: [String: TabDetail]       // tabId → detail
-    
-    struct TabDetail: Codable {
-        var url: String
-        var domain: String
-        var totalMs: Double
-    }
-}
 
 func loadExisting() -> TabTimeData {
     guard let data = try? Data(contentsOf: dataFile),
@@ -152,7 +140,7 @@ func handleTabTimeUpdate(_ message: [String: Any]) {
     save(existing)
 }
 
-// ── Main Loop ────────────────────────────────────────────────────
+// ── Main Loop ───────────────────────────────────────────────────
 
 // Keep reading messages until stdin closes
 while let message = readMessage() {

@@ -85,7 +85,7 @@ struct ChromeBrowserAdapter: BrowserController {
     }
 }
 
-class BaseBrowserAdapter: BrowserController {
+class BaseBrowserAdapter: BrowserController, @unchecked Sendable {
     let browserName: String
     
     init(browserName: String) {
@@ -169,18 +169,18 @@ class BaseBrowserAdapter: BrowserController {
     }
 }
 
-final class ArcBrowserAdapter: BaseBrowserAdapter {
+final class ArcBrowserAdapter: BaseBrowserAdapter, @unchecked Sendable {
     init() { super.init(browserName: "Arc") }
 }
 
-final class EdgeBrowserAdapter: BaseBrowserAdapter {
+final class EdgeBrowserAdapter: BaseBrowserAdapter, @unchecked Sendable {
     init() { super.init(browserName: "Microsoft Edge") }
 }
 
-final class BraveBrowserAdapter: BaseBrowserAdapter {
+final class BraveBrowserAdapter: BaseBrowserAdapter, @unchecked Sendable {
     init() { super.init(browserName: "Brave Browser") }
 }
 
-final class VivaldiBrowserAdapter: BaseBrowserAdapter {
+final class VivaldiBrowserAdapter: BaseBrowserAdapter, @unchecked Sendable {
     init() { super.init(browserName: "Vivaldi") }
 }

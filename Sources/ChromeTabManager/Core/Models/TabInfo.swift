@@ -7,14 +7,16 @@ struct TabInfo: Identifiable, Hashable, Sendable {
     var title: String
     var url: String
     let openedAt: Date
+    var profileName: String?
     
-    init(id: String, windowId: Int, tabIndex: Int, title: String, url: String, openedAt: Date) {
+    init(id: String, windowId: Int, tabIndex: Int, title: String, url: String, openedAt: Date, profileName: String? = nil) {
         self.id = id
         self.windowId = windowId
         self.tabIndex = tabIndex
         self.title = title
         self.url = url
         self.openedAt = openedAt
+        self.profileName = profileName
     }
     
     var ageDescription: String {

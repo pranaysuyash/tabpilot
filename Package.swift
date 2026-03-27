@@ -1,10 +1,10 @@
-// swift-tools-version:5.9
+// swift-tools-version:6.0
 import PackageDescription
 
 let package = Package(
     name: "ChromeTabManager",
-    // Note: This package requires macOS 14+ due to APIs/features used by the app.
-    platforms: [.macOS(.v14)],
+    // Note: This package requires macOS 15+ due to APIs/features used by the app.
+    platforms: [.macOS(.v15)],
     dependencies: [],
     targets: [
         .executableTarget(
@@ -14,6 +14,7 @@ let package = Package(
             ],
             swiftSettings: [.enableExperimentalFeature("StrictConcurrency")]
         ),
+
         .testTarget(
             name: "ChromeTabManagerTests",
             dependencies: ["ChromeTabManager"],

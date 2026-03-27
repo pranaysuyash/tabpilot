@@ -1,4 +1,14 @@
 import Foundation
+import CryptoKit
+
+// MARK: - MD5 Hashing Helper
+
+/// Compute MD5 hash of a string for stable identifiers
+func md5Hash(_ string: String) -> String {
+    let data = Data(string.utf8)
+    let hash = Insecure.MD5.hash(data: data)
+    return hash.map { String(format: "%02hhx", $0) }.joined()
+}
 
 // MARK: - AppleScript String Escaping
 
@@ -44,12 +54,44 @@ actor ChromeController {
         end tell
         """
         
-        let config = RetryConfig(maxAttempts: 3, baseDelay: 0.5, maxDelay: 3.0)
-        
-        let result = try await AsyncRetryHandler.retry(config: config) {
-            try await self.runAppleScript(script, timeout: 10)
-        }
+        let result = try await self.runAppleScript(script, timeout: 10)
         return Int(result.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0
+    }
+    
+    /// Create a new Chrome window and return its ID.
+    func createNewWindow() async -> Int? {
+        let script = """
+        tell application "Google Chrome"
+            make new window
+            return count of windows
+        end tell
+        """
+        
+        do {
+            let result = try await self.runAppleScript(script, timeout: 10)
+            return Int(result.trimmingCharacters(in: .whitespacesAndNewlines))
+        } catch {
+            SecureLogger.error("createNewWindow failed: \(error.localizedDescription)")
+            return nil
+        }
+    }
+    
+    /// Close all tabs in all Chrome windows.
+    /// Returns true on success, false on failure.
+    func closeAllTabs() async -> Bool {
+        let script = """
+        tell application "Google Chrome"
+            close every tab of every window
+        end tell
+        """
+        
+        do {
+            _ = try await self.runAppleScript(script, timeout: 30)
+            return true
+        } catch {
+            SecureLogger.error("closeAllTabs failed: \(error.localizedDescription)")
+            return false
+        }
     }
     
     // MARK: - Stable ID Generation (DATA-010)
@@ -57,7 +99,7 @@ actor ChromeController {
     private func stableTabId(windowId: Int, tabIndex: Int, url: String, title: String) -> String {
         let normalizedUrl = normalizeURL(url, stripQuery: false, filterTracking: true)
         let contentString = "\(normalizedUrl)|\(title)"
-        let contentHash = String(contentString.hashValue)
+        let contentHash = md5Hash(contentString)
         return "tab-\(contentHash)-w\(windowId)-t\(tabIndex)"
     }
     
@@ -268,8 +310,9 @@ actor ChromeController {
         let config = RetryConfig(maxAttempts: 3, baseDelay: 0.5, maxDelay: 3.0)
         
         do {
-            let result = try await AsyncRetryHandler.retry(config: config) {
-                try await self.runAppleScript(script, timeout: 10)
+            let result = try await AsyncRetryHandler.retry(config: config) { [weak self] in
+                guard let self = self else { throw CancellationError() }
+                return try await self.runAppleScript(script, timeout: 10)
             }
             let lines = result.components(separatedBy: ", ")
             var indices: [(Int, String, String)] = []

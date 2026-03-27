@@ -1,16 +1,32 @@
 import Foundation
 
 struct URLPattern: Codable, Identifiable, Equatable {
+    enum PatternAction: String, Codable, CaseIterable, Sendable {
+        case keep = "Keep"
+        case close = "Close"
+        case archive = "Archive"
+
+        var icon: String {
+            switch self {
+            case .keep: return "pin"
+            case .close: return "xmark.circle"
+            case .archive: return "archivebox"
+            }
+        }
+    }
+
     let id: UUID
     var pattern: String
     var enabled: Bool
     var description: String
+    var action: PatternAction
 
-    init(id: UUID = UUID(), pattern: String, enabled: Bool = true, description: String = "") {
+    init(id: UUID = UUID(), pattern: String, enabled: Bool = true, description: String = "", action: PatternAction = .keep) {
         self.id = id
         self.pattern = pattern
         self.enabled = enabled
         self.description = description
+        self.action = action
     }
 
     func matches(_ url: String) -> Bool {

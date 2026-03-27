@@ -23,9 +23,6 @@ struct ContentView: View {
         } detail: {
             MainContentView(viewModel: viewModel)
         }
-        .sheet(isPresented: $viewModel.showPaywall) {
-            PaywallView()
-        }
         .sheet(isPresented: $viewModel.showPreferences) {
             PreferencesView(viewModel: viewModel)
         }
@@ -127,7 +124,7 @@ struct ContentView: View {
                     .animation(.easeInOut(duration: 0.2), value: viewModel.showToast)
                 
                 // Undo bar
-                if viewModel.licenseManager.isLicensed && viewModel.canUndo {
+                if viewModel.canUndo {
                     VStack {
                         Spacer()
                         HStack {

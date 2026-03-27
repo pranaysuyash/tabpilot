@@ -129,4 +129,8 @@ class AutoCleanupManager: ObservableObject {
         CleanupRuleStore.shared.update(rule)
         refreshRules()
     }
+
+    func previewRule(_ rule: CleanupRule, against tabs: [TabInfo]) -> [TabInfo] {
+        tabs.filter { rule.matches($0) }
+    }
 }

@@ -79,7 +79,7 @@ class MenuBarController: ObservableObject {
     }
     
     @objc private func openApp() {
-        NSApplication.shared.activate(ignoringOtherApps: true)
+        NSApplication.shared.activate()
         if let window = NSApplication.shared.windows.first {
             window.makeKeyAndOrderFront(nil)
         }

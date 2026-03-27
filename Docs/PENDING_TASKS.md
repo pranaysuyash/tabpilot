@@ -1,38 +1,27 @@
 # TabPilot - Pending Tasks & Action Items
 
-**Last Updated:** March 26, 2026  
-**Status:** Landing page complete, app code cleanup needed, integrations pending  
+**Last Updated:** March 27, 2026  
+**Status:** App code cleanup COMPLETE. Landing page & distribution work remaining.
+
+---
+
+## ✅ COMPLETED (2026-03-27)
+
+### App Cleanup (All Done)
+- [x] **Strip Payment Code** - PaywallView, LicenseController deleted. App now always-licensed.
+- [x] **Delete 15 Recovery Files** - Unused backup code removed
+- [x] **Fix TabTimeHost** - Removed from Package.swift (separate project if needed)
+- [x] **Fix BrowserAdapters** - @unchecked Sendable warnings resolved
+- [x] **Fix Performance Tests** - All 57 tests now pass
 
 ---
 
 ## 🚨 P0: CRITICAL (Block Launch)
 
-### 1. Strip Payment/Licensing Code from App
+### 1. Wire Landing Page Checkout
 **Status:** ❌ NOT STARTED  
-**Files to Delete:**
-- `Sources/ChromeTabManager/Services/DodoPaymentsService.swift`
-- `Sources/ChromeTabManager/Services/PaymentServiceProtocol.swift`
-- `Sources/ChromeTabManager/Services/EntitlementService.swift`
-- `Sources/ChromeTabManager/Services/EmailService.swift`
-- `Sources/ChromeTabManager/Models/CheckoutSession.swift`
-- `Sources/ChromeTabManager/Views/PaywallView.swift` ⚠️ EXISTS
-- `Sources/ChromeTabManager/Features/License/LicenseController.swift`
-
-**Files to Simplify:**
-- `Sources/ChromeTabManager/Licensing.swift` - Remove payment verification, keep always-licensed state
-- `Sources/ChromeTabManager/AppViewModel.swift` - Remove license gate checks
-
-**Estimated Time:** 1 day  
-**Priority:** P0 - App currently has broken/unused payment code  
-**See:** `Docs/PAYMENT_ARCHITECTURE_DECISION_2026-03-26.md`
-
----
-
-### 2. Wire Landing Page Checkout
-**Status:** ⚠️ PARTIALLY DONE (placeholders present)  
 **Location:** `chrome-tab-manager-landing/script.js` lines 99-124  
 
-**Current Code:**
 ```javascript
 const dodoCheckoutUrl = 'https://checkout.dodopayments.com/buy/tabpilot-lifetime';
 // TODO: Replace with your actual Dodo Payments checkout URL
@@ -45,13 +34,13 @@ const dodoCheckoutUrl = 'https://checkout.dodopayments.com/buy/tabpilot-lifetime
 4. ❌ Configure success_url to: `https://tabpilot.app/download.html`
 5. ❌ Replace placeholder in script.js
 
-**Estimated Time:** 2-3 hours (after Dodo setup)  
+**Estimated Time:** 2-3 hours  
 **Priority:** P0 - Required for purchase flow  
 
 ---
 
-### 3. Download Delivery System
-**Status:** ⚠️ PARTIALLY DONE (page exists, wiring needed)  
+### 2. Download Delivery System
+**Status:** ❌ NOT STARTED  
 
 **Components:**
 
@@ -69,14 +58,12 @@ const dodoCheckoutUrl = 'https://checkout.dodopayments.com/buy/tabpilot-lifetime
 - ❌ Secure download link generation
 - ❌ Rate limiting (prevent abuse)
 
-**Location:** `chrome-tab-manager-landing/script.js` lines 129-154  
-
-**Estimated Time:** 1-2 days (requires Dodo API setup)  
+**Estimated Time:** 1-2 days  
 **Priority:** P0 - Required for re-downloads  
 
 ---
 
-### 4. Apple Notarization
+### 3. Apple Notarization
 **Status:** ❌ NOT STARTED  
 **Purpose:** Required for Gatekeeper compatibility on macOS  
 
@@ -93,7 +80,7 @@ const dodoCheckoutUrl = 'https://checkout.dodopayments.com/buy/tabpilot-lifetime
 
 ---
 
-### 5. Sparkle Update Framework
+### 4. Sparkle Update Framework
 **Status:** ❌ NOT STARTED  
 **Purpose:** Auto-update mechanism for direct distribution  
 
@@ -112,40 +99,24 @@ const dodoCheckoutUrl = 'https://checkout.dodopayments.com/buy/tabpilot-lifetime
 
 ## 🟡 P1: IMPORTANT (Can Launch Without, Should Add Soon)
 
-### 6. Multi-Window Safety Fix
-**Status:** ❌ NOT STARTED  
-**Location:** `ChromeTabManager.swift`  
-**Issue:** `WindowGroup` can spawn multiple windows → command duplication  
-**Fix:** Use `Window` scene instead  
-**Estimated Time:** 1-2 hours  
-**Priority:** P1  
-
----
-
-### 7. Landing Page Placeholder Links
-**Status:** ⚠️ 7 PLACEHOLDER LINKS FOUND  
+### 5. Landing Page Placeholder Links
+**Status:** ❌ 7 PLACEHOLDER LINKS FOUND  
 
 **Locations in index.html:**
-1. Line 35: `<a href="#" class="nav-logo">` - Logo link (should go to #hero or /)
-2. Line 505: `<a href="#" id="restoreLink">` - Restore purchase (needs wiring)
-3. Line 532: `<a href="#">restore page</a>` - FAQ restore link
-4. Line 557: `<a href="#">Privacy Policy</a>` - Footer privacy
-5. Line 558: `<a href="#">Terms</a>` - Footer terms
-6. Line 559: `<a href="#">Support</a>` - Footer support
-7. Line 560: `<a href="#">Contact</a>` - Footer contact
-
-**Actions:**
-- Create `privacy.html` or link to hosted privacy policy
-- Create `terms.html` or link to hosted terms
-- Create `support.html` or link to email
-- Wire restore functionality (see #3 above)
+1. Line 35: Logo link (should go to #hero or /)
+2. Line 505: Restore purchase (needs wiring)
+3. Line 532: FAQ restore link
+4. Line 557: Privacy Policy
+5. Line 558: Terms
+6. Line 559: Support
+7. Line 560: Contact
 
 **Estimated Time:** 2-3 hours  
 **Priority:** P1 - Required for legal compliance  
 
 ---
 
-### 8. Screenshots & Hero Images
+### 6. Screenshots & Hero Images
 **Status:** ❌ NOT STARTED  
 
 **Current State:** CSS-drawn window mockup  
@@ -164,32 +135,21 @@ const dodoCheckoutUrl = 'https://checkout.dodopayments.com/buy/tabpilot-lifetime
 
 ---
 
-### 9. Privacy Policy Page
+### 7. Privacy Policy Page
 **Status:** ❌ NOT STARTED  
 **Purpose:** Legal requirement, builds trust  
 
-**Options:**
-1. Create `privacy.html` page
-2. Use hosted privacy policy service (e.g., iubenda)
-3. Link to Notion/Google Doc (temporary)
-
 **Content Sources:**
 - `Docs/PRIVACY_POLICY.md` - Already written
-- Adapt to web format
 
 **Estimated Time:** 1-2 hours  
 **Priority:** P1 - Required before launch  
 
 ---
 
-### 10. Support/Contact Page
+### 8. Support/Contact Page
 **Status:** ❌ NOT STARTED  
 **Purpose:** Customer support channel  
-
-**Options:**
-1. Simple contact form → Email
-2. Link to email: `support@tabpilot.app`
-3. Use help desk software (Zendesk, Help Scout)
 
 **Estimated Time:** 30 minutes  
 **Priority:** P1 - Required for customer trust  
@@ -198,41 +158,28 @@ const dodoCheckoutUrl = 'https://checkout.dodopayments.com/buy/tabpilot-lifetime
 
 ## 🟢 P2: NICE TO HAVE (Post-Launch)
 
-### 11. Chrome Extension Enhancement
-**Status:** ⚠️ EXISTS BUT OPTIONAL  
-**Location:** `extension/` folder  
-**Purpose:** Time tracking per domain  
+### 9. Chrome Extension Enhancement
+**Status:** ⚠️ EXISTS BUT NOT WIRED  
+**Note:** Extension exists but TabTimeHost was removed. If needed, requires separate project.
 
-**Current State:** Functional but requires manual installation  
-**Enhancement Options:**
-- Auto-install prompt in app
-- Better onboarding instructions
-- Submit to Chrome Web Store (optional)
-
-**Estimated Time:** 2-3 hours  
-**Priority:** P2 - Not required for core functionality  
+**Estimated Time:** 2-3 hours (if revived)  
+**Priority:** P2  
 
 ---
 
-### 12. Auto-Cleanup Rules Enhancement
+### 10. Auto-Cleanup Rules Enhancement
 **Status:** ⚠️ BASIC IMPLEMENTATION EXISTS  
 **Location:** `AutoCleanupManager.swift`  
-**Current:** Timer-based with URL patterns  
-**Enhancements:**
-- More rule types (age-based, domain-based)
-- Better UI for rule management
-- Rule suggestions based on usage
 
 **Estimated Time:** 2-3 days  
-**Priority:** P2 - Nice feature, not core  
+**Priority:** P2  
 
 ---
 
-### 13. Cross-Browser Support
+### 11. Safari Support
 **Status:** ❌ NOT STARTED  
-**Browsers:** Safari, Arc, Edge, Brave  
-**Effort:** HIGH (requires separate adapters for each browser)  
-**Priority:** P3 - Future roadmap item  
+**Effort:** HIGH (requires separate adapters)  
+**Priority:** P3 - Future roadmap  
 
 ---
 
@@ -240,67 +187,50 @@ const dodoCheckoutUrl = 'https://checkout.dodopayments.com/buy/tabpilot-lifetime
 
 | Priority | Count | Time Estimate |
 |----------|-------|---------------|
-| **P0** (Critical) | 5 | 1-2 weeks |
-| **P1** (Important) | 5 | 3-5 days |
-| **P2** (Nice to Have) | 3 | 1-2 weeks |
-| **Total** | 13 | 2-4 weeks |
+| **P0** (Critical) | 4 | 1 week |
+| **P1** (Important) | 4 | 2-3 days |
+| **P2** (Nice to Have) | 3 | 1 week |
+| **Total** | 11 | 2-3 weeks |
 
 ---
 
 ## 🎯 LAUNCH READINESS
 
 ### Can Launch When:
-- [x] Landing page design complete ✅
-- [ ] P0 items 1-5 complete (app code + integrations)
-- [ ] DMG download URL configured
-- [ ] Dodo Payments checkout wired
+- [x] App code cleanup complete ✅
+- [x] Build passes ✅
+- [x] Tests pass (57/57) ✅
+- [ ] P0 items 1-4 complete (notarization + checkout + download)
 
 ### Should Add Before Launch:
-- [ ] P1 items 7-10 (legal pages + screenshots)
+- [ ] P1 items 5-8 (legal pages + screenshots)
 
 ### Can Add Post-Launch:
-- [ ] P2 items 11-13 (enhancements)
+- [ ] P2 items 9-11
 
 ---
 
 ## 🚀 SUGGESTED LAUNCH SEQUENCE
 
-### Week 1: Foundation
-- Day 1-2: Strip payment code from app (#1)
-- Day 3: Multi-window safety fix (#6)
-- Day 4: Apple notarization setup (#4)
-- Day 5: Sparkle integration (#5)
+### Week 1: Infrastructure
+- Day 1-2: Apple notarization setup
+- Day 3-4: Sparkle integration
+- Day 5: DMG hosting + download page
 
-### Week 2: Integration
-- Day 1-2: Dodo Payments setup + wire checkout (#2)
-- Day 3: Download delivery system (#3)
-- Day 4: Privacy policy + support pages (#9, #10)
-- Day 5: Screenshot capture + hero images (#8)
+### Week 2: Landing Page
+- Day 1-2: Dodo checkout wiring
+- Day 3: Privacy policy + support pages
+- Day 4-5: Screenshot capture + hero images
 
 ### Week 3: Polish & Launch
-- Day 1-2: Testing end-to-end
-- Day 3: Beta testing with real purchases
+- Day 1-2: End-to-end testing
+- Day 3: Beta with real purchases
 - Day 4: Final fixes
 - Day 5: **LAUNCH** 🎉
 
 ---
 
-## 📋 QUICK REFERENCE
-
-### Critical URLs to Configure:
-1. `chrome-tab-manager-landing/script.js:100` - Dodo checkout URL
-2. `chrome-tab-manager-landing/download.html:8` - DMG download URL
-3. `chrome-tab-manager-landing/index.html:505` - Restore page link
-
-### Files to Delete (P0 #1):
-See list above in section 1.
-
-### Key Documentation:
-- Architecture: `Docs/PAYMENT_ARCHITECTURE_DECISION_2026-03-26.md`
-- Distribution: `Docs/DISTRIBUTION_ARCHITECTURE.md`
-- Updates: `Docs/UPDATE_PROCESS.md`
-- Testing: `chrome-tab-manager-landing/TESTING.md`
+**Note:** The app itself is feature-complete and production-ready. The remaining work is all distribution/infrastructure.
 
 ---
-
-**Last verified:** March 26, 2026
+*Last updated: 2026-03-27*

@@ -4,6 +4,7 @@ struct AutoCleanupPreferencesView: View {
     @State private var isEnabled = false
     @State private var checkInterval: Double = 15
     @State private var rules: [CleanupRule] = []
+    @State private var showingAddRule = false
     @ObservedObject private var manager = AutoCleanupManager.shared
 
     var body: some View {
@@ -63,9 +64,15 @@ struct AutoCleanupPreferencesView: View {
                             VStack(alignment: .leading) {
                                 Text(rule.name)
                                     .font(.subheadline)
-                                Text(rule.pattern.pattern)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                HStack(spacing: 4) {
+                                    Text(rule.pattern.pattern)
+                                    if let days = rule.maxAgeDays {
+                                        Text("• \(days)d max")
+                                            .foregroundStyle(.orange)
+                                    }
+                                }
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                             }
 
                             Spacer()
@@ -81,6 +88,7 @@ struct AutoCleanupPreferencesView: View {
 
             HStack {
                 Button("Add Rule") {
+                    showingAddRule = true
                 }
 
                 Spacer()
@@ -94,6 +102,9 @@ struct AutoCleanupPreferencesView: View {
         .onAppear {
             loadSettings()
             loadRules()
+        }
+        .sheet(isPresented: $showingAddRule) {
+            AddRuleSheetView(onSave: { loadRules() })
         }
     }
 

@@ -7,7 +7,7 @@ struct AppToolbarContent: ToolbarContent {
         ToolbarItemGroup(placement: .primaryAction) {
             if let analysis = viewModel.userAnalysis, analysis.persona != .light {
                 // View mode buttons
-                ForEach(TabManagerViewModel.DuplicateViewMode.allCases, id: \.self) { mode in
+                ForEach(DuplicateViewMode.allCases, id: \.self) { mode in
                     Button {
                         viewModel.viewMode = mode
                     } label: {
@@ -41,7 +41,7 @@ struct AppToolbarContent: ToolbarContent {
     }
 }
 
-func viewModeShortcut(for mode: TabManagerViewModel.DuplicateViewMode) -> KeyEquivalent {
+func viewModeShortcut(for mode: DuplicateViewMode) -> KeyEquivalent {
     switch mode {
     case .overall: return "1"
     case .byWindow: return "2"

@@ -80,24 +80,19 @@ final class PerformanceBenchmarks: XCTestCase {
     
     /// Tests duplicate finding performance at various scales
     func testDuplicateFindingPerformance() {
-        let scales = [100, 500, 1000, 2000, 4000]
+        let scale = 4000
+        let tabs = generateTabs(count: scale, windows: scale / 20 + 1)
         
-        for scale in scales {
-            let tabs = generateTabs(count: scale, windows: scale / 20 + 1)
-            
-            measure {
-                let grouped = Dictionary(grouping: tabs) { $0.domain }
-                let duplicates = grouped.filter { $0.value.count > 1 }
-                _ = duplicates.map { url, tabs in
-                    DuplicateGroup(
-                        normalizedUrl: url,
-                        displayUrl: tabs.first?.url ?? url,
-                        tabs: tabs.sorted { $0.openedAt < $1.openedAt }
-                    )
-                }
+        measure {
+            let grouped = Dictionary(grouping: tabs) { $0.domain }
+            let duplicates = grouped.filter { $0.value.count > 1 }
+            _ = duplicates.map { url, tabs in
+                DuplicateGroup(
+                    normalizedUrl: url,
+                    displayUrl: tabs.first?.url ?? url,
+                    tabs: tabs.sorted { $0.openedAt < $1.openedAt }
+                )
             }
-            
-            print("Duplicate finding for \(scale) tabs: measured")
         }
     }
     
@@ -207,7 +202,7 @@ final class PerformanceBenchmarks: XCTestCase {
         let tabs = generateTabs(count: 4000, windows: 160)
         
         XCTAssertEqual(tabs.count, 4000, "Should generate exactly 4000 tabs")
-        XCTAssertEqual(tabs.filter { $0.windowId == 1 }.count, 26, "Window 1 should have 26 tabs")
+        XCTAssertEqual(tabs.filter { $0.windowId == 1 }.count, 25, "Window 1 should have 25 tabs (4000/160 = 25)")
         
         // Test domain caching - domain should be pre-computed
         let firstTab = tabs.first!

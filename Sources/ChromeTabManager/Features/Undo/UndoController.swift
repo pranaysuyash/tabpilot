@@ -34,11 +34,6 @@ final class UndoController {
     // MARK: - Public Methods
     
     func startUndoTimer(with tabs: [TabInfo]) {
-        guard LicenseManager.shared.isLicensed else {
-            clearUndo()
-            return
-        }
-        
         lastClosedTabs = tabs.map { tab in
             ClosedTabRecord(
                 windowId: tab.windowId,
@@ -67,7 +62,6 @@ final class UndoController {
     }
     
     func performUndo() async -> Int {
-        guard LicenseManager.shared.isLicensed else { return 0 }
         guard !lastClosedTabs.isEmpty else { return 0 }
         
         var restoredCount = 0

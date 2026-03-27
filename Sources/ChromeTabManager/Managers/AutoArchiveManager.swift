@@ -96,6 +96,28 @@ final class AutoArchiveManager: @unchecked Sendable {
         }.value
     }
     
+    /// Restore tabs from an archive by opening them in Chrome.
+    /// Returns the count of successfully opened tabs.
+    func restoreTabs(_ tabs: [ArchivedTab]) async -> Int {
+        guard !tabs.isEmpty else { return 0 }
+        guard await ChromeController.shared.isChromeRunning() else { return 0 }
+        
+        let windowCount = (try? await ChromeController.shared.getWindowCount()) ?? 0
+        guard windowCount > 0 else { return 0 }
+        
+        var restoredCount = 0
+        
+        for tab in tabs {
+            let success = await ChromeController.shared.openTab(windowId: 1, url: tab.url)
+            if success {
+                restoredCount += 1
+                try? await Task.sleep(nanoseconds: 100_000_000)
+            }
+        }
+        
+        return restoredCount
+    }
+    
     // MARK: - Compression (PERF-010)
     
     /// Compress string to LZFSE compressed Data

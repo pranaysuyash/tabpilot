@@ -92,14 +92,13 @@ struct SuperUserTableView: View {
                             }
                             .background(
                                 isSelected(group) ? Color.accentColor.opacity(0.1) :
-                                    (focusedGroupIndex == index ? Color(.selectedControlColor).opacity(0.1) : Color.clear)
+                                    (focusedGroupIndex == index ? Color(.selectedControlColor).opacity(0.1) :
+                                        (index.isMultiple(of: 2) ? Color(.controlBackgroundColor).opacity(0.3) : Color.clear))
                             )
                             .accessibilityElement(children: .combine)
                             .accessibilityLabel(accessibilityLabel(for: group, at: index))
                             .accessibilityHint("Press space to select, return to activate, command+return to close duplicates")
                             .accessibilityAddTraits(.isButton)
-
-                            Divider()
                         }
                     }
                 }
@@ -405,8 +404,8 @@ struct TableRow: View {
             .frame(width: 60)
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(isHovered ? Color(.selectedControlColor).opacity(0.1) : Color.clear)
+        .padding(.vertical, 5)
+        .background(isHovered ? Color(.selectedControlColor).opacity(0.15) : Color.clear)
         .onHover { hovering in
             isHovered = hovering
         }

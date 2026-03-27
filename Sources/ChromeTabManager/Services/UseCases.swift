@@ -12,8 +12,8 @@ protocol CloseTabsUseCaseProtocol: Sendable {
 
 @MainActor
 protocol ExportTabsUseCaseProtocol: Sendable {
-    func export(tabs: [TabInfo], format: ExportManager.ExportFormat) -> String
-    func exportDuplicates(groups: [DuplicateGroup], format: ExportManager.ExportFormat) -> String
+    func export(tabs: [TabInfo], format: ExportManager.TabExportFormat) -> String
+    func exportDuplicates(groups: [DuplicateGroup], format: ExportManager.TabExportFormat) -> String
 }
 
 struct DefaultScanTabsUseCase: ScanTabsUseCaseProtocol {
@@ -29,11 +29,11 @@ struct DefaultCloseTabsUseCase: CloseTabsUseCaseProtocol {
 }
 
 struct DefaultExportTabsUseCase: ExportTabsUseCaseProtocol {
-    func export(tabs: [TabInfo], format: ExportManager.ExportFormat) -> String {
+    func export(tabs: [TabInfo], format: ExportManager.TabExportFormat) -> String {
         ExportManager.export(tabs: tabs, format: format)
     }
 
-    func exportDuplicates(groups: [DuplicateGroup], format: ExportManager.ExportFormat) -> String {
+    func exportDuplicates(groups: [DuplicateGroup], format: ExportManager.TabExportFormat) -> String {
         ExportManager.exportDuplicates(groups: groups, format: format)
     }
 }
