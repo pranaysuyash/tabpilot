@@ -1,0 +1,9 @@
+{
+  "name": "com.tabpilot.timetracker",
+  "description": "TabPilot Tab Time Tracker Native Messaging Host",
+  "path": "/Applications/TabPilot.app/Contents/MacOS/TabTimeHost",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://EXTENSION_ID_HERE/"
+  ]
+}

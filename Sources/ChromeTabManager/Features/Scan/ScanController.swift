@@ -23,6 +23,7 @@ final class ScanController {
     var selectedTabIds: Set<String> = []
     
     // MARK: - Scan State
+    var selectedBrowser: Browser = .chrome
     var isScanning = false
     var scanProgress: Double = 0
     var scanMessage = ""
@@ -71,8 +72,8 @@ final class ScanController {
     
     func incrementalScan() async {
         guard !isScanning else { return }
-        guard await ChromeController.shared.isChromeRunning() else {
-            errorMessage = UserFacingError.chromeNotRunning.errorDescription
+        guard await selectedBrowser.controller.isRunning else {
+            errorMessage = "\(selectedBrowser.rawValue) is not running"
             return
         }
         
@@ -81,7 +82,7 @@ final class ScanController {
         scanProgress = 0.1
         
         do {
-            let result = try await scanUseCase.execute { [weak self] progress, message in
+            let result = try await scanUseCase.execute(browser: selectedBrowser) { [weak self] progress, message in
                 Task { @MainActor in
                     self?.scanMessage = message
                 }
@@ -94,7 +95,11 @@ final class ScanController {
             
             buildWindows()
             findDuplicates()
-            instances = await ChromeController.shared.getInstances(knownTabCount: tabs.count)
+            if selectedBrowser == .chrome {
+                instances = await ChromeController.shared.getInstances(knownTabCount: tabs.count)
+            } else {
+                instances = []
+            }
             userAnalysis = analyzeUser(tabs: tabs, duplicates: duplicateGroups)
             scanStats = result.telemetry
             
@@ -112,7 +117,7 @@ final class ScanController {
             }
             
         } catch ChromeError.notRunning {
-            errorMessage = UserFacingError.chromeNotRunning.errorDescription
+            errorMessage = "\(selectedBrowser.rawValue) is not running"
         } catch {
             errorMessage = UserFacingError.scanFailed(reason: error.localizedDescription).errorDescription
             isScanning = false
@@ -124,7 +129,7 @@ final class ScanController {
     private func _performScan() async {
         do {
             let result = try await withTimeout(seconds: 30) { [self] in
-                try await scanUseCase.execute { [weak self] progress, message in
+                try await scanUseCase.execute(browser: selectedBrowser) { [weak self] progress, message in
                     Task { @MainActor in
                         self?.scanProgress = Double(progress) / 100.0
                         self?.scanMessage = message
@@ -146,7 +151,11 @@ final class ScanController {
             tabs = atomicallyProcessTabsWithTimestamps(result.tabs)
             buildWindows()
             findDuplicates()
-            instances = await ChromeController.shared.getInstances(knownTabCount: tabs.count)
+            if selectedBrowser == .chrome {
+                instances = await ChromeController.shared.getInstances(knownTabCount: tabs.count)
+            } else {
+                instances = []
+            }
             updateWidgetData()
             
             userAnalysis = analyzeUser(tabs: tabs, duplicates: duplicateGroups)
@@ -335,7 +344,10 @@ final class ScanController {
     func isDomainProtected(_ url: String) -> Bool {
         guard let host = URL(string: url)?.host?.lowercased() else { return false }
         let protectedDomains = UserDefaults.standard.stringArray(forKey: "protectedDomains") ?? ["mail.google.com", "calendar.google.com"]
-        return protectedDomains.contains { host.contains($0) || $0.contains(host) }
+        return protectedDomains.contains { domain in
+            let normalized = domain.lowercased()
+            return host == normalized || host.hasSuffix(".\(normalized)")
+        }
     }
     
     private var stripQueryParams: Bool {

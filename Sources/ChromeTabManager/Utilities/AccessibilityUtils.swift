@@ -1,4 +1,79 @@
 import SwiftUI
+import Accessibility
+
+// MARK: - VoiceOver Labels
+
+/// Provides comprehensive accessibility labels for common UI elements
+struct AccessibleLabelModifier: ViewModifier {
+    let label: String
+    let hint: String?
+    let traits: AccessibilityTraits?
+    
+    init(label: String, hint: String? = nil, traits: AccessibilityTraits? = nil) {
+        self.label = label
+        self.hint = hint
+        self.traits = traits
+    }
+    
+    func body(content: Content) -> some View {
+        content
+            .accessibilityLabel(label)
+            .accessibilityHint(hint ?? "")
+            .accessibilityAddTraits(traits ?? .isButton)
+    }
+}
+
+extension View {
+    /// Adds comprehensive accessibility label with hint and optional traits
+    func accessibleLabel(_ label: String, hint: String? = nil, traits: AccessibilityTraits? = nil) -> some View {
+        modifier(AccessibleLabelModifier(label: label, hint: hint, traits: traits))
+    }
+    
+    /// Groups children for VoiceOver as a single element
+    func accessibilityGrouped(_ label: String, hint: String? = nil) -> some View {
+        self.accessibilityElement(children: .combine)
+            .accessibilityLabel(label)
+            .accessibilityHint(hint ?? "")
+    }
+    
+    /// Makes view a single accessibility element with custom label
+    func accessibilitySingleElement(_ label: String, hint: String? = nil) -> some View {
+        self.accessibilityElement(children: .ignore)
+            .accessibilityLabel(label)
+            .accessibilityHint(hint ?? "")
+    }
+}
+
+// MARK: - Announcements
+
+/// Accessibility announcement helpers
+@MainActor
+enum AccessibilityAnnouncements {
+    /// Announces a message to VoiceOver users
+    static func announce(_ message: String) {
+        AccessibilityNotification.announcement.post(argument: message)
+    }
+    
+    /// Announces scan completion
+    static func scanComplete(tabs: Int, duplicates: Int) {
+        announce("Scan complete. Found \(tabs) tabs, \(duplicates) duplicate groups.")
+    }
+    
+    /// Announces selection changes
+    static func selectionChanged(count: Int, total: Int) {
+        announce("Selected \(count) of \(total) items")
+    }
+    
+    /// Announces tab closure
+    static func tabsClosed(count: Int) {
+        announce("Closed \(count) tabs")
+    }
+    
+    /// Announces undo action
+    static func undoRestored(count: Int) {
+        announce("Restored \(count) tabs")
+    }
+}
 
 // MARK: - Scalable Font Modifier
 
@@ -37,41 +112,6 @@ extension View {
     }
 }
 
-// MARK: - VoiceOver Support
-
-struct AccessibleLabel: ViewModifier {
-    let label: String
-    let hint: String?
-    
-    init(label: String, hint: String? = nil) {
-        self.label = label
-        self.hint = hint
-    }
-    
-    func body(content: Content) -> some View {
-        content
-            .accessibilityLabel(Text(label))
-            .accessibilityHint(hint.map { Text($0) } ?? Text(""))
-    }
-}
-
-extension View {
-    func accessibleLabel(_ label: String, hint: String? = nil) -> some View {
-        modifier(AccessibleLabel(label: label, hint: hint))
-    }
-}
-
-// MARK: - Keyboard Navigation
-
-struct KeyboardFocusable: ViewModifier {
-    let action: () -> Void
-
-    func body(content: Content) -> some View {
-        content
-            .focusable()
-    }
-}
-
 // MARK: - Reduce Motion Support
 
 struct ReduceMotionToggle: ViewModifier {
@@ -99,26 +139,6 @@ extension View {
 
 // MARK: - High Contrast Support
 
-struct HighContrastView: View {
-    @Environment(\.colorSchemeContrast) var contrast
-    let text: LocalizedStringKey
-
-    init(text: LocalizedStringKey = "Content") {
-        self.text = text
-    }
-
-    var body: some View {
-        Text(text)
-            .foregroundColor(contrast == .increased ? .black : .primary)
-            .padding()
-            .background(contrast == .increased ? Color.white : Color.gray.opacity(0.1))
-            .overlay(
-                RoundedRectangle(cornerRadius: 4)
-                    .stroke(contrast == .increased ? Color.black : Color.clear, lineWidth: 2)
-            )
-    }
-}
-
 struct HighContrastAdaptive: ViewModifier {
     @Environment(\.colorSchemeContrast) private var contrast
 
@@ -132,5 +152,46 @@ struct HighContrastAdaptive: ViewModifier {
 extension View {
     func highContrastAdaptive() -> some View {
         modifier(HighContrastAdaptive())
+    }
+}
+
+// MARK: - Focus Management
+
+/// Focus management for form fields
+enum AccessibleFocusField: Hashable {
+    case search
+    case filter
+    case patternInput
+    case fileName
+    case primaryButton
+    case secondaryButton
+    case tabList
+    case sidebar
+    case mainContent
+}
+
+/// Focus state management helper
+@MainActor
+class AccessibilityFocusManager: ObservableObject {
+    @Published var focusedField: AccessibleFocusField?
+    
+    func moveFocus(to field: AccessibleFocusField) {
+        focusedField = field
+    }
+    
+    func clearFocus() {
+        focusedField = nil
+    }
+}
+
+// MARK: - Toggle Accessibility
+
+extension Toggle {
+    /// Makes toggle fully accessible with value
+    func accessibleToggle(_ label: String, hint: String? = nil, isOn: Bool) -> some View {
+        self.accessibilityLabel(label)
+            .accessibilityHint(hint ?? "")
+            .accessibilityValue(isOn ? "on" : "off")
+            .accessibilityAddTraits(.isButton)
     }
 }

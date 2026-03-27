@@ -12,6 +12,8 @@ struct ToastView: View {
             if isShowing, let message = message {
                 HStack(spacing: 8) {
                     Image(systemName: "info.circle.fill")
+                        .accessibilityHidden(true)
+                    
                     Text(message)
                         .font(.subheadline)
                 }
@@ -23,8 +25,10 @@ struct ToastView: View {
                 .shadow(radius: 4)
                 .padding(.bottom, 20)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
+                .accessibilityElement(children: .combine)
                 .accessibilityLabel(message)
                 .accessibilityAddTraits(.isStaticText)
+                .accessibilityHint("Toast notification")
             }
         }
     }
@@ -38,12 +42,18 @@ struct BigStat: View {
     var body: some View {
         VStack(spacing: 4) {
             Text("\(value)")
-                .font(.system(size: 48, weight: .bold, design: .rounded))
+                .font(.system(.title, design: .rounded))
+                .fontWeight(.bold)
                 .foregroundStyle(color)
+                .accessibilityHidden(true)
+            
             Text(label)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(value) \(label)")
     }
 }
 
@@ -55,16 +65,22 @@ struct StatBadge: View {
     var body: some View {
         VStack(spacing: 4) {
             Text("\(value)")
-                .font(.system(size: 20, weight: .bold, design: .rounded))
+                .font(.system(.title3, design: .rounded))
+                .fontWeight(.bold)
                 .foregroundStyle(color)
+                .accessibilityHidden(true)
+            
             Text(label)
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 8)
         .background(color.opacity(0.1))
         .clipShape(RoundedRectangle(cornerRadius: 8))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(value) \(label)")
     }
 }
 
@@ -78,6 +94,8 @@ struct ActionButton: View {
         Button(action: action) {
             HStack(spacing: 4) {
                 Image(systemName: icon)
+                    .accessibilityHidden(true)
+                
                 Text(title)
                     .font(.caption.bold())
             }
@@ -88,9 +106,7 @@ struct ActionButton: View {
             .clipShape(RoundedRectangle(cornerRadius: 6))
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(title)
-        .accessibilityHint("Selects tabs in this group based on '\(title)' strategy")
-        .accessibilityAddTraits(.isButton)
+        .accessibleLabel(title, hint: "Selects tabs in this group based on '\(title)' strategy")
     }
 }
 
@@ -118,13 +134,19 @@ struct TabRow: View {
                 if isOldest {
                     Image(systemName: "1.circle.fill")
                         .foregroundStyle(.green)
+                        .accessibilityHidden(true)
+                    
                     Text("FIRST")
                         .foregroundStyle(.green)
+                        .accessibilityHidden(true)
                 } else if isNewest {
                     Image(systemName: "star.circle.fill")
                         .foregroundStyle(.blue)
+                        .accessibilityHidden(true)
+                    
                     Text("LAST")
                         .foregroundStyle(.blue)
+                        .accessibilityHidden(true)
                 }
             }
             .font(.caption.bold())
@@ -135,9 +157,12 @@ struct TabRow: View {
                 Text(tab.title)
                     .font(.subheadline)
                     .lineLimit(1)
+                    .accessibilityLabel("Title: \(tab.title)")
+                
                 Text("Window \(tab.windowId) • Tab \(tab.tabIndex)")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
+                    .accessibilityLabel("Window \(tab.windowId), Tab \(tab.tabIndex)")
             }
             
             Spacer()
@@ -157,8 +182,7 @@ struct TabRow: View {
             }
             .buttonStyle(.plain)
             .help("Focus tab in Chrome")
-            .accessibilityLabel("Focus tab in Chrome")
-            .accessibilityHint("Switches to this tab in Chrome")
+            .accessibleLabel("Focus tab in Chrome", hint: "Switches to this tab in Chrome")
         }
         .padding(.vertical, 6)
         .background(isSelected ? Color.accentColor.opacity(0.1) : Color.clear)

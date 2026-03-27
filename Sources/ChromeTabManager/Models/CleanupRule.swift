@@ -6,6 +6,7 @@ struct CleanupRule: Identifiable, Codable {
     var pattern: URLPattern
     var action: CleanupAction
     var enabled: Bool
+    var maxAgeDays: Int?
     var matchCount: Int
     var lastAppliedAt: Date?
 
@@ -28,13 +29,15 @@ struct CleanupRule: Identifiable, Codable {
         name: String,
         pattern: URLPattern,
         action: CleanupAction = .close,
-        enabled: Bool = true
+        enabled: Bool = true,
+        maxAgeDays: Int? = nil
     ) {
         self.id = id
         self.name = name
         self.pattern = pattern
         self.action = action
         self.enabled = enabled
+        self.maxAgeDays = maxAgeDays
         self.matchCount = 0
         self.lastAppliedAt = nil
     }

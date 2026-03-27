@@ -4,16 +4,14 @@ import SwiftUI
 struct URLPatternsPreferencesView: View {
     @State private var patterns: [URLPattern] = []
     @State private var showAddSheet = false
-    @State private var newPattern = ""
-    @State private var newDescription = ""
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("URL Patterns")
                         .font(.headline)
-                    Text("Define wildcard patterns to match specific URLs.")
+                    Text("Define wildcard patterns to match specific URLs and assign actions.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -26,9 +24,9 @@ struct URLPatternsPreferencesView: View {
                 .buttonStyle(.bordered)
             }
             .padding()
-            
+
             Divider()
-            
+
             if patterns.isEmpty {
                 VStack(spacing: 12) {
                     Image(systemName: "link.badge.plus")
@@ -41,18 +39,39 @@ struct URLPatternsPreferencesView: View {
             } else {
                 List {
                     ForEach(patterns) { pattern in
-                        URLPatternRow(pattern: pattern, onDelete: {
-                            patterns.removeAll { $0.id == pattern.id }
-                            savePatterns()
-                        })
+                        URLPatternRow(
+                            pattern: pattern,
+                            onToggle: {
+                                togglePattern(pattern)
+                            },
+                            onDelete: {
+                                deletePattern(pattern)
+                            }
+                        )
                     }
                 }
                 .listStyle(.plain)
             }
         }
         .onAppear { patterns = URLPatternStore.shared.loadPatterns() }
+        .sheet(isPresented: $showAddSheet) {
+            AddPatternSheetView(onSave: {
+                patterns = URLPatternStore.shared.loadPatterns()
+            })
+        }
     }
-    
+
+    private func togglePattern(_ pattern: URLPattern) {
+        guard let idx = patterns.firstIndex(where: { $0.id == pattern.id }) else { return }
+        patterns[idx].enabled.toggle()
+        savePatterns()
+    }
+
+    private func deletePattern(_ pattern: URLPattern) {
+        patterns.removeAll { $0.id == pattern.id }
+        savePatterns()
+    }
+
     private func savePatterns() {
         URLPatternStore.shared.savePatterns(patterns)
     }
@@ -60,20 +79,35 @@ struct URLPatternsPreferencesView: View {
 
 struct URLPatternRow: View {
     let pattern: URLPattern
+    let onToggle: () -> Void
     let onDelete: () -> Void
-    
+
     var body: some View {
         HStack {
+            Button {
+                onToggle()
+            } label: {
+                Image(systemName: pattern.enabled ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(pattern.enabled ? .green : .secondary)
+            }
+            .buttonStyle(.plain)
+
             VStack(alignment: .leading, spacing: 2) {
                 Text(pattern.pattern)
                     .font(.subheadline.monospaced())
-                if !pattern.description.isEmpty {
-                    Text(pattern.description)
+                HStack(spacing: 4) {
+                    if !pattern.description.isEmpty {
+                        Text(pattern.description)
+                    }
+                    Label(pattern.action.rawValue, systemImage: pattern.action.icon)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
                 }
+                .font(.caption)
+                .foregroundStyle(.secondary)
             }
+
             Spacer()
+
             Button(role: .destructive) { onDelete() } label: {
                 Image(systemName: "trash")
             }

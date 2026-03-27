@@ -12,7 +12,11 @@ final class AppViewModel: ObservableObject {
     let scanController: ScanController
     let tabSelectionController: TabSelectionController
     let undoController: UndoController
-    let licenseController: LicenseController
+    let licenseManager: LicenseManager = .shared
+    
+    // MARK: - Cross-Browser Support
+    @Published var selectedBrowser: Browser = .chrome
+    @Published var browserStatuses: [Browser: Bool] = [:]
     
     // MARK: - UI State
     @Published var toastMessage: String?
@@ -22,9 +26,29 @@ final class AppViewModel: ObservableObject {
     @Published var isPreferencesOpen = false
     @Published var showReviewPlan = false
     @Published var showArchiveHistory = false
+    @Published var showExtensionInstallationGuide = false
+    @Published var showKeyboardShortcutsHelp = false
     @Published var showConfirmation = false
     @Published var confirmationTitle = ""
     @Published var confirmationMessage = ""
+    @Published var confirmationLastResult: ConfirmationResult?
+    @Published var confirmationCanRetry = false
+    
+    struct ConfirmationResult: Equatable, Sendable {
+        let success: Bool
+        let closedCount: Int
+        let failedCount: Int
+        let ambiguousCount: Int
+        let errorMessage: String?
+        
+        static func success(closed: Int, failed: Int = 0, ambiguous: Int = 0) -> ConfirmationResult {
+            ConfirmationResult(success: true, closedCount: closed, failedCount: failed, ambiguousCount: ambiguous, errorMessage: nil)
+        }
+        
+        static func failure(closed: Int, failed: Int, ambiguous: Int, error: String) -> ConfirmationResult {
+            ConfirmationResult(success: false, closedCount: closed, failedCount: failed, ambiguousCount: ambiguous, errorMessage: error)
+        }
+    }
     
     // MARK: - Import/Export
     @Published var importPreviewTabs: [ImportTab] = []
@@ -95,12 +119,11 @@ final class AppViewModel: ObservableObject {
     var undoMessage: String { undoController.undoMessage }
     var undoTimeRemaining: Double { undoController.undoTimeRemaining }
     
-    var isLicensed: Bool { licenseController.isLicensed }
+    var isLicensed: Bool { licenseManager.isLicensed }
     
-    var licenseManager: LicenseManager { LicenseManager.shared }
+    var hasDuplicates: Bool { scanController.hasDuplicates }
     
     // MARK: - More Computed
-    var hasDuplicates: Bool { scanController.hasDuplicates }
     var config: PersonaConfig { scanController.config }
     var healthMetrics: HealthMetrics? { scanController.healthMetrics }
     var domainGroups: [DomainGroup] { scanController.domainGroups }
@@ -161,7 +184,6 @@ final class AppViewModel: ObservableObject {
         self.scanController = ScanController()
         self.tabSelectionController = TabSelectionController()
         self.undoController = UndoController()
-        self.licenseController = LicenseController()
         self.closeUseCase = DefaultCloseTabsUseCase()
         self.exportUseCase = DefaultExportTabsUseCase()
         self.eventBus = .shared
@@ -195,6 +217,55 @@ final class AppViewModel: ObservableObject {
                 self?.smartSelect()
             }
             .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: .refreshTabs)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                Task { await self?.incrementalScan() }
+            }
+            .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: .selectAllTabs)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.selectAll()
+            }
+            .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: .deselectAllTabs)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.deselectAll()
+            }
+            .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: .undoLastClose)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                Task { await self?.undoLastClose() }
+            }
+            .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: .redoAction)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.displayToast(message: "Redo is not available yet")
+            }
+            .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: .clearFilter)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.searchQuery = ""
+            }
+            .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: .showKeyboardShortcutsHelp)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.showKeyboardShortcutsHelp = true
+            }
+            .store(in: &cancellables)
         
         NotificationCenter.default.publisher(for: .closeSelected)
             .receive(on: DispatchQueue.main)
@@ -209,6 +280,20 @@ final class AppViewModel: ObservableObject {
                 self?.showPreferences = true
             }
             .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: .showExtensionGuide)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.showExtensionInstallationGuide = true
+            }
+            .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: .showArchiveHistory)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.showArchiveHistory = true
+            }
+            .store(in: &cancellables)
         
         NotificationCenter.default.publisher(for: .reviewPlan)
             .receive(on: DispatchQueue.main)
@@ -221,6 +306,14 @@ final class AppViewModel: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 Task { await self?.closeAllDuplicatesDirectly() }
+            }
+            .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: .closeTabsForDomain)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] notification in
+                guard let domain = notification.userInfo?["domain"] as? String else { return }
+                Task { await self?.closeTabsForDomain(domain) }
             }
             .store(in: &cancellables)
     }
@@ -253,13 +346,24 @@ final class AppViewModel: ObservableObject {
     
     // MARK: - Scan Actions
     func scan() async {
+        scanController.selectedBrowser = selectedBrowser
         await scanController.scan()
         tabSelectionController.invalidateDuplicateCache()
+        await TabTimeStore.shared.saveDailyRecord()
     }
     
     func incrementalScan() async {
+        scanController.selectedBrowser = selectedBrowser
         await scanController.incrementalScan()
         tabSelectionController.invalidateDuplicateCache()
+        await TabTimeStore.shared.saveDailyRecord()
+    }
+    
+    // MARK: - Browser Status
+    func refreshBrowserStatuses() async {
+        for browser in Browser.allCases {
+            browserStatuses[browser] = await browser.controller.isRunning
+        }
     }
     
     // MARK: - Selection Actions
@@ -338,13 +442,16 @@ final class AppViewModel: ObservableObject {
             totalAmbiguous += result.ambiguous
         }
         
-        for tab in toClose.prefix(totalClosed) {
+        for tab in toClose {
             eventBus.publish(TabClosedEvent(tabId: tab.id, timestamp: Date()))
         }
         
         if totalFailed > 0 {
             let userError = UserFacingError.tabCloseFailed(count: totalFailed)
             ErrorPresenter.shared.present(userError)
+            confirmationLastResult = .failure(closed: totalClosed, failed: totalFailed, ambiguous: totalAmbiguous, error: userError.localizedDescription)
+        } else {
+            confirmationLastResult = .success(closed: totalClosed, failed: totalFailed, ambiguous: totalAmbiguous)
         }
         
         if totalAmbiguous > 0 {
@@ -422,14 +529,43 @@ final class AppViewModel: ObservableObject {
     func executeConfirmation() async {
         showConfirmation = false
         if let action = confirmationAction {
+            confirmationCanRetry = true
             await action()
+            if confirmationLastResult?.success == true {
+                confirmationAction = nil
+                confirmationCanRetry = false
+            }
         }
-        confirmationAction = nil
+    }
+    
+    func retryLastConfirmation() async {
+        guard confirmationCanRetry, let action = confirmationAction else { return }
+        confirmationLastResult = nil
+        await action()
     }
     
     func cancelConfirmation() {
         showConfirmation = false
         confirmationAction = nil
+        confirmationLastResult = nil
+        confirmationCanRetry = false
+    }
+
+    // MARK: - Domain Close Action
+    func closeTabsForDomain(_ domain: String) async {
+        let normalizedDomain = domain.lowercased()
+        let tabsForDomain = tabs.filter { tab in
+            let tabDomain = tab.domain.lowercased()
+            return tabDomain == normalizedDomain || tabDomain.hasSuffix(".\(normalizedDomain)")
+        }
+
+        guard !tabsForDomain.isEmpty else {
+            displayToast(message: "No open tabs found for \(domain)")
+            return
+        }
+
+        selectedTabIds = Set(tabsForDomain.map(\.id))
+        await closeSelectedTabs()
     }
     
     // MARK: - Undo
@@ -926,14 +1062,9 @@ final class AppViewModel: ObservableObject {
     // MARK: - Private Helpers
     private func ensureCanClose(requestedCount: Int) -> Bool {
         guard requestedCount > 0 else { return true }
-        if !isLicensed {
-            showPaywall = true
-            displayToast(message: "Please unlock TabPilot to close tabs.")
-            return false
-        }
         return true
     }
-    
+
     private func closeConfirmationMessage(for count: Int) -> String {
         return "This will close \(count) selected tabs. You can undo this action for 30 seconds."
     }

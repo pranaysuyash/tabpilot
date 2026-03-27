@@ -3,6 +3,8 @@ import UniformTypeIdentifiers
 
 struct ContentView: View {
     @StateObject private var viewModel: TabManagerViewModel
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
+    @State private var showOnboardingSheet = false
     @State private var exportDocument: TabExportDocument?
     @State private var exportDefaultFilename = "ChromeTabs.md"
     @State private var showingFileExporter = false
@@ -23,11 +25,11 @@ struct ContentView: View {
         } detail: {
             MainContentView(viewModel: viewModel)
         }
-        .sheet(isPresented: $viewModel.showPaywall) {
-            PaywallView()
-        }
         .sheet(isPresented: $viewModel.showPreferences) {
             PreferencesView(viewModel: viewModel)
+        }
+        .sheet(isPresented: $viewModel.showExtensionInstallationGuide) {
+            ExtensionInstallationGuide()
         }
         .sheet(isPresented: $showingArchiveSheet) {
             ArchiveSheetView(
@@ -41,6 +43,9 @@ struct ContentView: View {
                 showingArchiveSheet = false
             }
         }
+        .sheet(isPresented: $viewModel.showArchiveHistory) {
+            ArchiveHistoryView(viewModel: viewModel)
+        }
         .sheet(isPresented: $viewModel.isImportResultPresented) {
             ImportResultView(
                 importedTabs: viewModel.importPreviewTabs,
@@ -52,6 +57,22 @@ struct ContentView: View {
                     viewModel.isImportResultPresented = false
                 }
             )
+        }
+        .sheet(isPresented: $showOnboardingSheet) {
+            OnboardingView(
+                hasCompletedOnboarding: Binding(
+                    get: { hasCompletedOnboarding },
+                    set: { completed in
+                        hasCompletedOnboarding = completed
+                        if completed {
+                            showOnboardingSheet = false
+                        }
+                    }
+                )
+            )
+        }
+        .sheet(isPresented: $viewModel.showKeyboardShortcutsHelp) {
+            KeyboardShortcutsHelpView()
         }
         .toolbar {
             AppToolbarContent(viewModel: viewModel)
@@ -127,7 +148,7 @@ struct ContentView: View {
                     .animation(.easeInOut(duration: 0.2), value: viewModel.showToast)
                 
                 // Undo bar
-                if viewModel.licenseManager.isLicensed && viewModel.canUndo {
+                if viewModel.canUndo {
                     VStack {
                         Spacer()
                         HStack {
@@ -167,6 +188,9 @@ struct ContentView: View {
                 }
             }
         )
+        .onAppear {
+            showOnboardingSheet = !hasCompletedOnboarding
+        }
     }
 
     private func prepareExportSelected(format: TabManagerViewModel.ExportFormat) {

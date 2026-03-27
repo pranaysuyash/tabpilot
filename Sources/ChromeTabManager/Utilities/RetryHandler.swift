@@ -48,7 +48,7 @@ struct RetryConfig {
 actor AsyncRetryHandler {
     static func retry<T>(
         config: RetryConfig = .default,
-        operation: @escaping () async throws -> T
+        operation: @escaping @Sendable () async throws -> T
     ) async throws -> T {
         var lastError: Error?
 
@@ -71,7 +71,7 @@ actor AsyncRetryHandler {
 
     static func retryWithResult<T>(
         config: RetryConfig = .default,
-        operation: @escaping () async throws -> T
+        operation: @escaping @Sendable () async throws -> T
     ) async -> Result<T, Error> {
         do {
             return .success(try await retry(config: config, operation: operation))

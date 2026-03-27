@@ -63,7 +63,7 @@ final class HotkeyManager {
     }
 
     private func bringToFront() {
-        NSApplication.shared.activate(ignoringOtherApps: true)
+        NSApplication.shared.activate()
         NSApplication.shared.windows.first?.makeKeyAndOrderFront(nil)
     }
 }

@@ -70,20 +70,41 @@ final class UndoController {
         guard LicenseManager.shared.isLicensed else { return 0 }
         guard !lastClosedTabs.isEmpty else { return 0 }
         
+        // Batch open all tabs via single AppleScript call per window for better performance.
+        // Opening 100+ tabs sequentially with 100ms delay each would take 10+ seconds.
+        
+        let tabsByWindow = Dictionary(grouping: lastClosedTabs) { $0.windowId }
+        
         var restoredCount = 0
         var failedCount = 0
         
-        for closedTab in lastClosedTabs {
-            let success = await ChromeController.shared.openTab(
-                windowId: closedTab.windowId,
-                url: closedTab.url
-            )
+        for (windowId, tabs) in tabsByWindow {
+            let urls = tabs.map { $0.url }
+            let escapedUrls = urls.map { appleScriptEscape($0) }
+            let urlList = escapedUrls.map { "\"\($0)\"" }.joined(separator: ", ")
             
-            if success {
-                restoredCount += 1
-                try? await Task.sleep(nanoseconds: 100_000_000)
-            } else {
-                failedCount += 1
+            let script = """
+            tell application "Google Chrome"
+                tell window \(windowId)
+                    repeat with theURL in {\(urlList)}
+                        set newTab to make new tab
+                        set URL of newTab to theURL
+                    end repeat
+                end tell
+                return "done"
+            end tell
+            """
+            
+            do {
+                let result = try await ChromeController.shared.runAppleScript(script, timeout: 30)
+                if result.trimmingCharacters(in: .whitespacesAndNewlines) == "done" {
+                    restoredCount += tabs.count
+                } else {
+                    failedCount += tabs.count
+                }
+            } catch {
+                SecureLogger.error("Batch undo failed for window \(windowId): \(error)")
+                failedCount += tabs.count
             }
         }
         

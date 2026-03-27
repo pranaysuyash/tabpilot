@@ -9,7 +9,7 @@
 
 ### 2) Scan Parity
 - **Status**: Working
-- Both menu (Cmd+R) and toolbar Scan trigger same notification → same scan behavior
+- Both menu (Cmd+S) and toolbar Scan trigger same notification → same scan behavior
 
 ## B) Tooltip / Help Discoverability ✅
 
@@ -74,7 +74,8 @@ Review plan shows:
 Added to Tabs menu:
 | Command | Shortcut | Action |
 |---------|----------|--------|
-| Scan Tabs | Cmd+R | Trigger scan |
+| Scan Tabs | Cmd+S | Trigger scan |
+| Refresh Tabs | Cmd+Shift+R | Trigger incremental refresh |
 | Review Cleanup Plan | Cmd+Shift+P | Open review plan |
 | Smart Select | Cmd+Shift+S | Smart select duplicates |
 | Close Selected | Cmd+Delete | Close selected tabs |

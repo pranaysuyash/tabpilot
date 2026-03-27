@@ -7,20 +7,25 @@ struct MainContentView: View {
         Group {
             if viewModel.isScanning {
                 ScanningView(viewModel: viewModel)
+                    .accessibilityLabel("Scanning in progress")
             } else if let analysis = viewModel.userAnalysis {
                 switch analysis.persona {
                 case .light:
                     LightUserView(viewModel: viewModel, analysis: analysis)
+                        .accessibilityLabel("Light user view")
                 case .superUser:
                     SuperUserView(viewModel: viewModel, analysis: analysis)
+                        .accessibilityLabel("Super user view")
                 default:
                     StandardUserView(viewModel: viewModel, analysis: analysis)
+                        .accessibilityLabel("Standard user view")
                 }
             } else {
                 EmptyStateView(viewModel: viewModel)
+                    .accessibilityLabel("Empty state")
             }
         }
-        .navigationTitle("Duplicates")
+        .navigationTitle("TabPilot")
     }
 }
 
@@ -34,7 +39,12 @@ struct LightUserView: View {
                 // Big friendly stats
                 HStack(spacing: 32) {
                     BigStat(value: analysis.totalTabs, label: "Tabs", color: .blue)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("\(analysis.totalTabs) total tabs")
+                    
                     BigStat(value: analysis.duplicateGroups, label: "Duplicates", color: .orange)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("\(analysis.duplicateGroups) duplicate groups")
                 }
                 
                 if viewModel.hasDuplicates {
@@ -42,6 +52,7 @@ struct LightUserView: View {
                         Text("Cleaning duplicates will make Chrome faster!")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
+                            .accessibilityLabel("Cleaning duplicates will make Chrome faster")
                         
                         Button {
                             viewModel.requestCloseAllDuplicates(keepOldest: true)
@@ -56,17 +67,21 @@ struct LightUserView: View {
                         }
                         .buttonStyle(.borderedProminent)
                         .controlSize(.large)
-                        .help("Review and close all duplicate tabs, keeping the first-seen tab for each URL")
+                        .keyboardShortcut("c", modifiers: [.command, .shift])
+                        .accessibilityLabel("Clean all duplicates")
+                        .accessibilityHint("Review and close all duplicate tabs, keeping the first-seen tab for each URL")
                         
                         Text("We'll keep the first-seen tab and close the rest")
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                            .accessibilityLabel("The first-seen tab will be kept and the rest will be closed")
                     }
                     
                     // Simple list of what's being cleaned
                     VStack(alignment: .leading, spacing: 12) {
                         Text("What we'll clean:")
                             .font(.headline)
+                            .accessibilityAddTraits(.isHeader)
                         
                         ForEach(viewModel.duplicateGroups.prefix(5)) { group in
                             SimpleDuplicateRow(group: group)
@@ -76,6 +91,7 @@ struct LightUserView: View {
                             Text("... and \(viewModel.duplicateGroups.count - 5) more")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
+                                .accessibilityLabel("And \(viewModel.duplicateGroups.count - 5) more duplicate groups")
                         }
                     }
                     .frame(maxWidth: 500, alignment: .leading)
@@ -84,12 +100,15 @@ struct LightUserView: View {
                         Image(systemName: "checkmark.seal.fill")
                             .font(.system(size: 64))
                             .foregroundStyle(.green)
+                            .accessibilityLabel("Success checkmark")
                         
                         Text("No duplicates found!")
                             .font(.title2.bold())
+                            .accessibilityLabel("No duplicates found")
                         
                         Text("Your Chrome is already clean and organized.")
                             .foregroundStyle(.secondary)
+                            .accessibilityLabel("Your Chrome is already clean and organized")
                     }
                     .padding(.top, 40)
                 }
@@ -118,14 +137,13 @@ struct SuperUserView: View {
                             .textFieldStyle(.roundedBorder)
                             .frame(width: 200)
                             .focused($focusedField, equals: .search)
-                            .help("Filter duplicates by title, URL, or domain (Cmd+F)")
                             .accessibilityLabel("Filter duplicates")
-                            .accessibilityHint("Type to filter duplicate groups by title, URL, or domain")
+                            .accessibilityHint("Type to filter duplicate groups by title, URL, or domain. Press Escape to clear.")
                     }
                     
                     // View mode picker
                     Picker("View", selection: $viewModel.viewMode) {
-                        ForEach(TabManagerViewModel.DuplicateViewMode.allCases, id: \.self) { mode in
+                        ForEach(DuplicateViewMode.allCases, id: \.self) { mode in
                             Label(mode.rawValue, systemImage: mode.icon)
                                 .tag(mode)
                                 .help(mode.description)
@@ -135,7 +153,7 @@ struct SuperUserView: View {
                     .frame(width: 400)
                     .help("Change how duplicate tabs are grouped and displayed")
                     .accessibilityLabel("Duplicate view mode")
-                    .accessibilityHint("Changes how duplicate tabs are grouped and displayed")
+                    .accessibilityHint("Changes how duplicate tabs are grouped and displayed. Use Command plus number keys to switch.")
                     
                     Spacer()
                     
@@ -143,23 +161,27 @@ struct SuperUserView: View {
                         Text("\(viewModel.tabs.count) tabs")
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                            .accessibilityLabel("\(viewModel.tabs.count) total tabs")
                         
                         Text("\(viewModel.duplicateGroups.count) groups")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .help("Duplicate groups")
+                            .accessibilityLabel("\(viewModel.duplicateGroups.count) duplicate groups")
                         
                         Text("\(analysis.wastedTabs) extra")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .help("Tabs beyond the first for each URL")
+                            .accessibilityLabel("\(analysis.wastedTabs) wasted duplicate tabs")
                         
                         // Protected domains indicator
-                        if viewModel.licenseManager.isLicensed && !viewModel.protectedDomains.isEmpty {
+                        if !viewModel.protectedDomains.isEmpty {
                             Text("\(viewModel.protectedDomains.count) protected")
                                 .font(.caption)
                                 .foregroundStyle(.blue)
                                 .help("Domains excluded from cleanup: \(viewModel.protectedDomains.joined(separator: ", "))")
+                                .accessibilityLabel("\(viewModel.protectedDomains.count) protected domains")
                         }
                     }
                     
@@ -172,7 +194,7 @@ struct SuperUserView: View {
                         }
                         .buttonStyle(.bordered)
                         .tint(.red)
-                        .help("Close the selected tabs. Undo is available for 30 seconds.")
+                        .keyboardShortcut("w", modifiers: .command)
                         .accessibilityLabel("Close \(viewModel.selectedTabIds.count) selected tabs")
                         .accessibilityHint("Closes the selected tabs. Undo is available for 30 seconds.")
                     }
@@ -183,7 +205,7 @@ struct SuperUserView: View {
                         Label("Review Cleanup Plan", systemImage: "wand.and.stars")
                     }
                     .buttonStyle(.borderedProminent)
-                    .help("Review which tabs will be closed before applying changes. Matching rules can be changed in Preferences (Cmd+,).")
+                    .keyboardShortcut("p", modifiers: [.command, .shift])
                     .accessibilityLabel("Review cleanup plan")
                     .accessibilityHint("Opens a review sheet showing which tabs will be closed before applying changes")
                 }
@@ -196,6 +218,7 @@ struct SuperUserView: View {
                 }
                 .listStyle(.plain)
                 .id(viewModel.viewMode) // Force refresh on mode change
+                .accessibilityLabel("List of duplicate groups")
             }
             
             // Review Plan overlay with scrim
@@ -205,6 +228,7 @@ struct SuperUserView: View {
                     .onTapGesture {
                         viewModel.cancelReviewPlan()
                     }
+                    .accessibilityLabel("Review plan background")
                 
                 ReviewPlanView(viewModel: viewModel)
                     .frame(maxWidth: 800, maxHeight: 700)
@@ -213,6 +237,8 @@ struct SuperUserView: View {
                     .shadow(radius: 20)
                     .padding()
                     .animation(.spring(response: 0.35, dampingFraction: 0.8), value: viewModel.showReviewPlan)
+                    .accessibilityLabel("Review cleanup plan sheet")
+                    .accessibilityHint("Review which tabs will be closed before applying changes")
             }
         }
         // Listen for Cmd+F notification to focus the search field
@@ -232,7 +258,7 @@ struct StandardUserView: View {
             // Toolbar with view mode
             HStack {
                 Picker("View", selection: $viewModel.viewMode) {
-                    ForEach(TabManagerViewModel.DuplicateViewMode.allCases, id: \.self) { mode in
+                    ForEach(DuplicateViewMode.allCases, id: \.self) { mode in
                         Label(mode.rawValue, systemImage: mode.icon)
                             .tag(mode)
                     }
@@ -255,11 +281,13 @@ struct StandardUserView: View {
                     Section {
                         Text("No duplicates found!")
                             .foregroundStyle(.secondary)
+                            .accessibilityLabel("No duplicates found")
                     }
                 }
             }
             .listStyle(.plain)
             .id(viewModel.viewMode)
+            .accessibilityLabel("List of duplicate groups")
         }
     }
 }
@@ -271,13 +299,20 @@ struct ScanningView: View {
         VStack(spacing: 20) {
             ProgressView()
                 .scaleEffect(2)
+                .accessibilityLabel("Scanning progress indicator")
+            
             Text("Scanning Chrome tabs...")
                 .font(.headline)
+                .accessibilityLabel("Scanning Chrome tabs")
+            
             Text(viewModel.scanMessage)
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                .accessibilityLabel(viewModel.scanMessage)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Scanning Chrome tabs, \(viewModel.scanMessage)")
     }
 }
 
@@ -289,15 +324,19 @@ struct EmptyStateView: View {
             Image(systemName: "doc.text.magnifyingglass")
                 .font(.system(size: 64))
                 .foregroundStyle(.secondary)
+                .accessibilityLabel("Scan icon")
             
             Text("Scan Your Chrome Tabs")
                 .font(.title2.bold())
+                .accessibilityLabel("Scan your Chrome tabs")
             
             Button("Scan Now") {
                 Task { await viewModel.scan() }
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
+            .keyboardShortcut("s", modifiers: .command)
+            .accessibleLabel("Scan now", hint: "Starts a full scan of all open Chrome windows")
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

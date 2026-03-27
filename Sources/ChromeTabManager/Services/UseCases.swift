@@ -2,7 +2,7 @@ import Foundation
 
 @MainActor
 protocol ScanTabsUseCaseProtocol: Sendable {
-    func execute(progress: @escaping @Sendable (Int, String) -> Void) async throws -> (tabs: [TabInfo], telemetry: ScanTelemetry)
+    func execute(browser: Browser, progress: @escaping @Sendable (Int, String) -> Void) async throws -> (tabs: [TabInfo], telemetry: ScanTelemetry)
 }
 
 @MainActor
@@ -12,13 +12,13 @@ protocol CloseTabsUseCaseProtocol: Sendable {
 
 @MainActor
 protocol ExportTabsUseCaseProtocol: Sendable {
-    func export(tabs: [TabInfo], format: ExportManager.ExportFormat) -> String
-    func exportDuplicates(groups: [DuplicateGroup], format: ExportManager.ExportFormat) -> String
+    func export(tabs: [TabInfo], format: ExportManager.TabExportFormat) -> String
+    func exportDuplicates(groups: [DuplicateGroup], format: ExportManager.TabExportFormat) -> String
 }
 
 struct DefaultScanTabsUseCase: ScanTabsUseCaseProtocol {
-    func execute(progress: @escaping @Sendable (Int, String) -> Void) async throws -> (tabs: [TabInfo], telemetry: ScanTelemetry) {
-        try await ChromeController.shared.scanAllTabsFast(progress: progress)
+    func execute(browser: Browser, progress: @escaping @Sendable (Int, String) -> Void) async throws -> (tabs: [TabInfo], telemetry: ScanTelemetry) {
+        try await browser.controller.scanAllTabsFast(progress: progress)
     }
 }
 
@@ -29,11 +29,11 @@ struct DefaultCloseTabsUseCase: CloseTabsUseCaseProtocol {
 }
 
 struct DefaultExportTabsUseCase: ExportTabsUseCaseProtocol {
-    func export(tabs: [TabInfo], format: ExportManager.ExportFormat) -> String {
+    func export(tabs: [TabInfo], format: ExportManager.TabExportFormat) -> String {
         ExportManager.export(tabs: tabs, format: format)
     }
 
-    func exportDuplicates(groups: [DuplicateGroup], format: ExportManager.ExportFormat) -> String {
+    func exportDuplicates(groups: [DuplicateGroup], format: ExportManager.TabExportFormat) -> String {
         ExportManager.exportDuplicates(groups: groups, format: format)
     }
 }

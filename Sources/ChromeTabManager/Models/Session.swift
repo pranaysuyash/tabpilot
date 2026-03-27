@@ -1,5 +1,30 @@
 import Foundation
 
+/// Options for how to restore a session
+enum RestoreOptions: String, CaseIterable, Identifiable {
+    case addToOpen = "Add to Open"
+    case newWindow = "New Window"
+    case replaceOpen = "Replace Open"
+    
+    var id: String { rawValue }
+    
+    var icon: String {
+        switch self {
+        case .addToOpen: return "plus.circle"
+        case .newWindow: return "rectangle.portrait.on.rectangle.portrait.angled"
+        case .replaceOpen: return "arrow.triangle.2.circlepath"
+        }
+    }
+    
+    var description: String {
+        switch self {
+        case .addToOpen: return "Adds tabs to your existing Chrome tabs"
+        case .newWindow: return "Opens session in a new Chrome window"
+        case .replaceOpen: return "Closes all open tabs, then opens session"
+        }
+    }
+}
+
 /// A saved session — a snapshot of tabs the user wants to preserve and reopen later.
 struct Session: Identifiable, Codable, Hashable {
     let id: UUID
@@ -82,12 +107,26 @@ class SessionStore: ObservableObject {
     }
     
     // MARK: - CRUD
-    
+
     func saveCurrentTabs(_ tabs: [TabInfo], name: String, notes: String = "") {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else { return }
+
         let sessionTabs = tabs.map { SessionTab(tabInfo: $0) }
-        let session = Session(name: name, tabs: sessionTabs, notes: notes)
-        sessions.insert(session, at: 0)
+        let session = Session(name: trimmedName, tabs: sessionTabs, notes: notes)
+
+        // Handle name collision: overwrite existing session with same name (case-insensitive)
+        if let existingIdx = sessions.firstIndex(where: { $0.name.lowercased() == trimmedName.lowercased() }) {
+            sessions[existingIdx] = session
+        } else {
+            sessions.insert(session, at: 0)
+        }
         persist()
+    }
+
+    func sessionExists(withName name: String) -> Bool {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return sessions.contains { $0.name.lowercased() == trimmed }
     }
     
     func delete(_ session: Session) {
@@ -120,6 +159,62 @@ class SessionStore: ObservableObject {
         guard !newSessions.isEmpty else { return }
         sessions.append(contentsOf: newSessions)
         persist()
+    }
+    
+    /// Restore a session with the given option.
+    /// Returns the count of successfully opened tabs.
+    func restoreSession(_ session: Session, option: RestoreOptions) async -> Int {
+        guard await ChromeController.shared.isChromeRunning() else { return 0 }
+        
+        switch option {
+        case .addToOpen:
+            return await restoreToExistingWindow(session)
+        case .newWindow:
+            return await restoreToNewWindow(session)
+        case .replaceOpen:
+            return await restoreWithReplace(session)
+        }
+    }
+    
+    private func restoreToExistingWindow(_ session: Session) async -> Int {
+        let windowCount = (try? await ChromeController.shared.getWindowCount()) ?? 0
+        guard windowCount > 0 else { return 0 }
+        
+        var restoredCount = 0
+        for tab in session.tabs {
+            let success = await ChromeController.shared.openTab(windowId: 1, url: tab.url)
+            if success { restoredCount += 1 }
+            try? await Task.sleep(nanoseconds: 100_000_000)
+        }
+        return restoredCount
+    }
+    
+    private func restoreToNewWindow(_ session: Session) async -> Int {
+        let newWindowId = await ChromeController.shared.createNewWindow()
+        guard let windowId = newWindowId, windowId > 0 else { return 0 }
+        
+        var restoredCount = 0
+        for tab in session.tabs {
+            let success = await ChromeController.shared.openTab(windowId: windowId, url: tab.url)
+            if success { restoredCount += 1 }
+            try? await Task.sleep(nanoseconds: 100_000_000)
+        }
+        return restoredCount
+    }
+    
+    private func restoreWithReplace(_ session: Session) async -> Int {
+        guard await ChromeController.shared.closeAllTabs() else { return 0 }
+        
+        let windowCount = (try? await ChromeController.shared.getWindowCount()) ?? 0
+        guard windowCount > 0 else { return 0 }
+        
+        var restoredCount = 0
+        for tab in session.tabs {
+            let success = await ChromeController.shared.openTab(windowId: 1, url: tab.url)
+            if success { restoredCount += 1 }
+            try? await Task.sleep(nanoseconds: 100_000_000)
+        }
+        return restoredCount
     }
     
     // MARK: - Persistence

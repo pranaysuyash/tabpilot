@@ -42,4 +42,21 @@ enum DefaultsKeys {
     // MARK: - UI State
     static let lastSelectedViewMode = "lastSelectedViewMode"
     static let onboardingComplete = "onboardingComplete"
+    
+    // MARK: - Notification Settings
+    static let notificationsEnabled = "notificationsEnabled"
+    static let notificationGlobalThreshold = "notificationGlobalThreshold"
+    static let notificationCooldown = "notificationCooldown"
+    static let notificationQuietHoursEnabled = "notificationQuietHoursEnabled"
+    static let notificationQuietHoursStart = "notificationQuietHoursStart"
+    static let notificationQuietHoursEnd = "notificationQuietHoursEnd"
+    static let notificationWeeklySummary = "notificationWeeklySummary"
+    static let notificationDomainThresholds = "notificationDomainThresholds"
+    static let notificationIgnoredDomains = "notificationIgnoredDomains"
+    
+    // MARK: - Extension Installation
+    static let extensionDataReceived = "extensionDataReceived"
+    static let extensionInstallationDontShowAgain = "extensionInstallationDontShowAgain"
+    static let extensionInstallationLastPromptDate = "extensionInstallationLastPromptDate"
+    static let extensionId = "extensionId"
 }

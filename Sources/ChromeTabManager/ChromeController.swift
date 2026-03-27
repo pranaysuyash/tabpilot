@@ -1,4 +1,14 @@
 import Foundation
+import CryptoKit
+
+// MARK: - MD5 Hashing Helper
+
+/// Compute MD5 hash of a string for stable identifiers
+func md5Hash(_ string: String) -> String {
+    let data = Data(string.utf8)
+    let hash = Insecure.MD5.hash(data: data)
+    return hash.map { String(format: "%02hhx", $0) }.joined()
+}
 
 // MARK: - AppleScript String Escaping
 
@@ -43,22 +53,62 @@ actor ChromeController {
             return count of windows
         end tell
         """
-        
+
         let config = RetryConfig(maxAttempts: 3, baseDelay: 0.5, maxDelay: 3.0)
-        
-        let result = try await AsyncRetryHandler.retry(config: config) {
-            try await self.runAppleScript(script, timeout: 10)
+        let result = try await AsyncRetryHandler.retry(config: config) { [weak self] in
+            guard let self else { throw CancellationError() }
+            return try await self.runAppleScript(script, timeout: 10)
         }
         return Int(result.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0
     }
     
+    /// Create a new Chrome window and return its ID.
+    func createNewWindow() async -> Int? {
+        let script = """
+        tell application "Google Chrome"
+            set newWindow to make new window
+            return id of newWindow
+        end tell
+        """
+        
+        do {
+            let result = try await self.runAppleScript(script, timeout: 10)
+            return Int(result.trimmingCharacters(in: .whitespacesAndNewlines))
+        } catch {
+            SecureLogger.error("createNewWindow failed: \(error.localizedDescription)")
+            return nil
+        }
+    }
+    
+    /// Close all tabs in all Chrome windows.
+    /// Returns true on success, false on failure.
+    func closeAllTabs() async -> Bool {
+        let script = """
+        tell application "Google Chrome"
+            close every tab of every window
+        end tell
+        """
+        
+        do {
+            _ = try await self.runAppleScript(script, timeout: 30)
+            return true
+        } catch {
+            SecureLogger.error("closeAllTabs failed: \(error.localizedDescription)")
+            return false
+        }
+    }
+    
     // MARK: - Stable ID Generation (DATA-010)
     
-    private func stableTabId(windowId: Int, tabIndex: Int, url: String, title: String) -> String {
+    private func stableTabId(chromeTabId: Int?, url: String, title: String) -> String {
+        if let chromeTabId {
+            return "tab-\(chromeTabId)"
+        }
+
         let normalizedUrl = normalizeURL(url, stripQuery: false, filterTracking: true)
         let contentString = "\(normalizedUrl)|\(title)"
-        let contentHash = String(contentString.hashValue)
-        return "tab-\(contentHash)-w\(windowId)-t\(tabIndex)"
+        let contentHash = md5Hash(contentString)
+        return "tab-\(contentHash)"
     }
     
     private func normalizeURL(_ url: String, stripQuery: Bool, filterTracking: Bool) -> String {
@@ -101,7 +151,7 @@ actor ChromeController {
             repeat with w in windows
                 set tabIndex to 1
                 repeat with t in tabs of w
-                    set tabData to (winIndex as string) & "|" & (tabIndex as string) & "|" & (URL of t) & "|" & (title of t) & ";"
+                    set tabData to (winIndex as string) & "|" & (tabIndex as string) & "|" & (id of t as string) & "|" & (URL of t) & "|" & (title of t) & ";"
                     set allData to allData & tabData
                     set tabIndex to tabIndex + 1
                 end repeat
@@ -126,17 +176,18 @@ actor ChromeController {
                 
                 // Split on first 3 pipes only — title may contain pipe characters
                 let parts = trimmed.components(separatedBy: "|")
-                guard parts.count >= 4,
+                                guard parts.count >= 5,
                       let windowId = Int(parts[0].trimmingCharacters(in: .whitespacesAndNewlines)),
                       let tabIndex = Int(parts[1].trimmingCharacters(in: .whitespacesAndNewlines)) else {
                     continue
                 }
-                
-                let url = parts[2].trimmingCharacters(in: .whitespacesAndNewlines)
+
+                                let chromeTabId = Int(parts[2].trimmingCharacters(in: .whitespacesAndNewlines))
+                                let url = parts[3].trimmingCharacters(in: .whitespacesAndNewlines)
                 // Reassemble any remaining parts as the title (handles pipes in title)
-                let title = parts[3...].joined(separator: "|").trimmingCharacters(in: .whitespacesAndNewlines)
-                
-                let tabId = stableTabId(windowId: windowId, tabIndex: tabIndex, url: url, title: title)
+                                let title = parts[4...].joined(separator: "|").trimmingCharacters(in: .whitespacesAndNewlines)
+
+                                let tabId = stableTabId(chromeTabId: chromeTabId, url: url, title: title)
                 let tab = TabInfo(
                     id: tabId,
                     windowId: windowId,
@@ -268,8 +319,9 @@ actor ChromeController {
         let config = RetryConfig(maxAttempts: 3, baseDelay: 0.5, maxDelay: 3.0)
         
         do {
-            let result = try await AsyncRetryHandler.retry(config: config) {
-                try await self.runAppleScript(script, timeout: 10)
+            let result = try await AsyncRetryHandler.retry(config: config) { [weak self] in
+                guard let self = self else { throw CancellationError() }
+                return try await self.runAppleScript(script, timeout: 10)
             }
             let lines = result.components(separatedBy: ", ")
             var indices: [(Int, String, String)] = []

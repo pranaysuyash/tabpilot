@@ -5,7 +5,7 @@ struct ExportView: View {
     @ObservedObject var viewModel: TabManagerViewModel
     @Environment(\.dismiss) private var dismiss
     
-    @State private var selectedFormat: ExportManager.ExportFormat = .markdown
+    @State private var selectedFormat: ExportManager.TabExportFormat = .markdown
     @State private var exportContent = ""
     @State private var selectedDataType: DataType = .allTabs
     @State private var copySuccess = false
@@ -47,7 +47,7 @@ struct ExportView: View {
                 .frame(width: 200)
                 
                 Picker("Format", selection: $selectedFormat) {
-                    ForEach(ExportManager.ExportFormat.allCases, id: \.self) { f in
+                    ForEach(ExportManager.TabExportFormat.allCases, id: \.self) { f in
                         Text(f.rawValue).tag(f)
                     }
                 }
@@ -87,12 +87,12 @@ struct ExportView: View {
                     .padding()
                     .textSelection(.enabled)
             }
-            .background(Color(.textBackgroundColor))
+            .background(Color.adaptiveTextBackground)
         }
         .frame(width: 700, height: 500)
         .onAppear { generateContent() }
-        .onChange(of: selectedFormat) { _ in generateContent() }
-        .onChange(of: selectedDataType) { _ in generateContent() }
+        .onChange(of: selectedFormat) { generateContent() }
+        .onChange(of: selectedDataType) { generateContent() }
     }
     
     private func generateContent() {

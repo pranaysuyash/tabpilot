@@ -70,15 +70,15 @@ final class ChromeTabManagerTests: XCTestCase {
     // MARK: - View Mode Tests
     
     func testViewModeDescriptions() {
-        XCTAssertEqual(TabManagerViewModel.DuplicateViewMode.overall.description, "Show all duplicates grouped by URL")
-        XCTAssertEqual(TabManagerViewModel.DuplicateViewMode.byWindow.description, "Group duplicates by which window they are in")
-        XCTAssertEqual(TabManagerViewModel.DuplicateViewMode.byDomain.description, "Group duplicates by website domain")
-        XCTAssertEqual(TabManagerViewModel.DuplicateViewMode.crossWindow.description, "Show only duplicates that exist in multiple windows")
+        XCTAssertEqual(DuplicateViewMode.overall.description, "Show all duplicates grouped by URL")
+        XCTAssertEqual(DuplicateViewMode.byWindow.description, "Group duplicates by which window they are in")
+        XCTAssertEqual(DuplicateViewMode.byDomain.description, "Group duplicates by website domain")
+        XCTAssertEqual(DuplicateViewMode.crossWindow.description, "Show only duplicates that exist in multiple windows")
     }
     
     func testViewModeIcons() {
-        XCTAssertEqual(TabManagerViewModel.DuplicateViewMode.overall.icon, "doc.on.doc")
-        XCTAssertEqual(TabManagerViewModel.DuplicateViewMode.byWindow.icon, "uiwindow.split.2x1")
+        XCTAssertEqual(DuplicateViewMode.overall.icon, "doc.on.doc")
+        XCTAssertEqual(DuplicateViewMode.byWindow.icon, "uiwindow.split.2x1")
     }
     
     // MARK: - Persona Detection Tests

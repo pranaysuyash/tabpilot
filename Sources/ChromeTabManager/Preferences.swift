@@ -21,24 +21,25 @@ struct PreferencesView: View {
                     Label("Export/Import", systemImage: "square.and.arrow.up.on.square")
                 }
             
-            if viewModel.licenseManager.isLicensed {
-                ProtectionPreferences(viewModel: viewModel)
-                    .tabItem {
-                        Label("Protection", systemImage: "shield")
-                    }
-            }
+            AutoCleanupPreferencesView()
+                .tabItem {
+                    Label("Auto-Cleanup", systemImage: "wand.and.stars")
+                }
+            
+            NotificationSettingsView()
+                .tabItem {
+                    Label("Notifications", systemImage: "bell")
+                }
             
             KeyboardShortcutsView()
                 .tabItem {
                     Label("Shortcuts", systemImage: "keyboard")
                 }
-            
-            if viewModel.licenseManager.isLicensed {
-                AutoCleanupPreferencesView()
-                    .tabItem {
-                        Label("Auto-Cleanup", systemImage: "wand.and.stars")
-                    }
-            }
+
+            URLPatternsPreferencesView()
+                .tabItem {
+                    Label("URL Patterns", systemImage: "link")
+                }
         }
         .frame(width: 500, height: 400)
         .padding()
@@ -175,7 +176,7 @@ struct ExportImportPreferences: View {
                     get: { viewModel.defaultExportFormat },
                     set: { viewModel.defaultExportFormat = $0 }
                 )) {
-                    ForEach(TabManagerViewModel.ExportFormat.allCases, id: \.self) { format in
+                    ForEach(ExportFormat.allCases, id: \.self) { format in
                         Text(format.rawValue).tag(format)
                     }
                 }
@@ -268,7 +269,7 @@ struct ShortcutRow: View {
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
-                .background(Color(.controlBackgroundColor))
+                .background(Color.adaptiveGroupedBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 4))
         }
     }

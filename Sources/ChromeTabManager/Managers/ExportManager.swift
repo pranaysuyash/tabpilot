@@ -1,10 +1,32 @@
 import Foundation
 import AppKit
+import UniformTypeIdentifiers
+
+/// Errors that can occur during export operations
+enum ExportError: Error, LocalizedError {
+    case noDataAvailable
+    case fileSaveFailed
+    case encodingFailed
+    case permissionDenied
+    
+    var errorDescription: String? {
+        switch self {
+        case .noDataAvailable:
+            return "No time tracking data available for the selected period."
+        case .fileSaveFailed:
+            return "Failed to save the file. Please try a different location."
+        case .encodingFailed:
+            return "Failed to encode the data. Please try again."
+        case .permissionDenied:
+            return "Permission denied. Please grant access to the selected folder."
+        }
+    }
+}
 
 /// Exports tab data in various formats (Markdown, CSV, JSON) to the file system or clipboard.
 struct ExportManager {
     
-    enum ExportFormat: String, CaseIterable {
+    enum TabExportFormat: String, CaseIterable {
         case markdown = "Markdown"
         case csv = "CSV"
         case json = "JSON"
@@ -18,9 +40,44 @@ struct ExportManager {
         }
     }
     
-    // MARK: - Export Methods
+    /// Export format for historical time data
+    enum HistoryExportFormat: String, CaseIterable {
+        case csv = "CSV"
+        case json = "JSON"
+        
+        var fileExtension: String {
+            switch self {
+            case .csv: return "csv"
+            case .json: return "json"
+            }
+        }
+        
+        var contentType: UTType {
+            switch self {
+            case .csv: return .commaSeparatedText
+            case .json: return .json
+            }
+        }
+    }
     
-    static func export(tabs: [TabInfo], format: ExportFormat) -> String {
+    /// Date range options for export
+    enum ExportDateRange: String, CaseIterable {
+        case last7Days = "Last 7 Days"
+        case last30Days = "Last 30 Days"
+        case last90Days = "Last 90 Days"
+        
+        var days: Int {
+            switch self {
+            case .last7Days: return 7
+            case .last30Days: return 30
+            case .last90Days: return 90
+            }
+        }
+    }
+    
+    // MARK: - Tab Export Methods
+    
+    static func export(tabs: [TabInfo], format: TabExportFormat) -> String {
         switch format {
         case .markdown: return exportMarkdown(tabs: tabs)
         case .csv: return exportCSV(tabs: tabs)
@@ -28,12 +85,79 @@ struct ExportManager {
         }
     }
     
-    static func exportDuplicates(groups: [DuplicateGroup], format: ExportFormat) -> String {
+    static func exportDuplicates(groups: [DuplicateGroup], format: TabExportFormat) -> String {
         switch format {
         case .markdown: return exportDuplicatesMarkdown(groups: groups)
         case .csv: return exportDuplicatesCSV(groups: groups)
         case .json: return exportDuplicatesJSON(groups: groups)
         }
+    }
+    
+    // MARK: - Historical Data Export
+    
+    /// Export historical time tracking data
+    @MainActor
+    static func exportHistory(format: HistoryExportFormat, days: Int) async throws {
+        // Check if data is available
+        let hasData = await TabTimeStore.shared.availableHistoryDays > 0
+        guard hasData else {
+            throw ExportError.noDataAvailable
+        }
+        
+        // Generate export data
+        let data: Data
+        let filename: String
+        
+        switch format {
+        case .csv:
+            let csvString = await TabTimeStore.shared.exportToCSV(days: days)
+            guard let csvData = csvString.data(using: .utf8) else {
+                throw ExportError.encodingFailed
+            }
+            data = csvData
+            filename = "tabpilot_history_\(formatDateForFilename()).csv"
+        case .json:
+            data = try await TabTimeStore.shared.exportToJSON(days: days)
+            filename = "tabpilot_history_\(formatDateForFilename()).json"
+        }
+        
+        // Present save dialog
+        try await saveDataWithDialog(data: data, filename: filename, contentType: format.contentType)
+    }
+    
+    /// Present save dialog and save data to user-selected location
+    @MainActor
+    private static func saveDataWithDialog(data: Data, filename: String, contentType: UTType) async throws {
+        let savePanel = NSSavePanel()
+        savePanel.nameFieldStringValue = filename
+        savePanel.allowedContentTypes = [contentType]
+        savePanel.canCreateDirectories = true
+        
+        let response = await withCheckedContinuation { continuation in
+            savePanel.begin { result in
+                continuation.resume(returning: result)
+            }
+        }
+        
+        guard response == .OK, let url = savePanel.url else {
+            return // User cancelled
+        }
+        
+        do {
+            try data.write(to: url)
+        } catch {
+            if (error as NSError).code == 513 {
+                throw ExportError.permissionDenied
+            } else {
+                throw ExportError.fileSaveFailed
+            }
+        }
+    }
+    
+    private static func formatDateForFilename() -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: Date())
     }
     
     // MARK: - Markdown
