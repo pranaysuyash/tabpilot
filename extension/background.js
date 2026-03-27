@@ -40,15 +40,17 @@ function now() {
 // ── Core tracking ────────────────────────────────────────────────
 
 function startTracking(tabId, url, options = {}) {
-  const { startImmediately = false } = options;
+  const { startImmediately = tabId === activeTabId } = options;
   if (!url || url.startsWith("chrome://") || url.startsWith("chrome-extension://")) return;
 
   const domain = getDomain(url);
+  const existingState = tabState.get(tabId);
+  const isSameURL = existingState?.url === url;
   tabState.set(tabId, {
     url,
     domain,
     startTime: startImmediately && !trackingPaused ? now() : null,
-    accumulatedMs: tabState.get(tabId)?.accumulatedMs || 0,
+    accumulatedMs: isSameURL ? existingState?.accumulatedMs || 0 : 0,
   });
 }
 

@@ -7,6 +7,7 @@ struct ExtensionInstallationGuide: View {
     @State private var showDontShowAgain = false
     @State private var isChromeInstalled = true
     @State private var installationStatusMessage: String?
+    @State private var configuredExtensionId = ""
     
     var body: some View {
         VStack(spacing: 0) {
@@ -38,6 +39,7 @@ struct ExtensionInstallationGuide: View {
                         chromeNotInstalledSection
                     } else {
                         whatExtensionDoesSection
+                        extensionIdSection
                         installationStepsSection
                     }
                 }
@@ -92,6 +94,7 @@ struct ExtensionInstallationGuide: View {
         .frame(width: 500, height: 600)
         .onAppear {
             checkChromeInstallation()
+            configuredExtensionId = manager.configuredExtensionId
         }
     }
     
@@ -159,13 +162,20 @@ struct ExtensionInstallationGuide: View {
                 
                 StepRow(
                     number: 3,
+                    title: "Copy the Extension ID",
+                    description: "Open the extension details page in Chrome and copy the ID into the field above",
+                    action: nil
+                )
+
+                StepRow(
+                    number: 4,
                     title: "Load Unpacked Extension",
                     description: "Click \"Load unpacked\" and select the extension folder",
                     action: nil
                 )
                 
                 StepRow(
-                    number: 4,
+                    number: 5,
                     title: "Grant Permissions",
                     description: "Allow the extension to access tab data when prompted",
                     action: nil
@@ -181,6 +191,26 @@ struct ExtensionInstallationGuide: View {
         // Check if Chrome is installed by looking for the app
         let chromePath = "/Applications/Google Chrome.app"
         isChromeInstalled = FileManager.default.fileExists(atPath: chromePath)
+    }
+
+    private var extensionIdSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Extension ID", systemImage: "number")
+                .font(.headline)
+
+            Text("Paste the Chrome extension ID after loading the unpacked extension. TabPilot uses it to register the native messaging host for first-run setup.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            TextField("Chrome extension ID", text: $configuredExtensionId)
+                .textFieldStyle(.roundedBorder)
+                .onChange(of: configuredExtensionId) { _, newValue in
+                    manager.saveConfiguredExtensionId(newValue)
+                }
+        }
+        .padding()
+        .background(Color.adaptiveTextBackground)
+        .cornerRadius(8)
     }
 }
 

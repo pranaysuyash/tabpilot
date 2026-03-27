@@ -8,6 +8,7 @@ final class ExtensionInstallationManager: ObservableObject {
     
     @Published var showInstallationGuide = false
     @Published var extensionDataAvailable = false
+    @Published var configuredExtensionId: String
     
     private let userDefaults: UserDefaults
     private let tabTimeStore: TabTimeStore
@@ -15,6 +16,7 @@ final class ExtensionInstallationManager: ObservableObject {
     private init(userDefaults: UserDefaults = .standard, tabTimeStore: TabTimeStore = .shared) {
         self.userDefaults = userDefaults
         self.tabTimeStore = tabTimeStore
+        self._configuredExtensionId = Published(initialValue: userDefaults.string(forKey: DefaultsKeys.extensionId) ?? "")
     }
     
     /// Checks if the Chrome extension is providing data
@@ -59,6 +61,16 @@ final class ExtensionInstallationManager: ObservableObject {
     func markDontShowAgain() {
         userDefaults.set(true, forKey: DefaultsKeys.extensionInstallationDontShowAgain)
     }
+
+    func saveConfiguredExtensionId(_ extensionId: String) {
+        let sanitized = extensionId.trimmingCharacters(in: .whitespacesAndNewlines)
+        configuredExtensionId = sanitized
+        if sanitized.isEmpty {
+            userDefaults.removeObject(forKey: DefaultsKeys.extensionId)
+        } else {
+            userDefaults.set(sanitized, forKey: DefaultsKeys.extensionId)
+        }
+    }
     
     /// Opens Chrome to the extensions page
     func openChromeExtensions() {
@@ -89,5 +101,7 @@ final class ExtensionInstallationManager: ObservableObject {
         userDefaults.removeObject(forKey: DefaultsKeys.extensionInstallationDontShowAgain)
         userDefaults.removeObject(forKey: DefaultsKeys.extensionInstallationLastPromptDate)
         userDefaults.removeObject(forKey: DefaultsKeys.extensionDataReceived)
+        userDefaults.removeObject(forKey: DefaultsKeys.extensionId)
+        configuredExtensionId = ""
     }
 }
