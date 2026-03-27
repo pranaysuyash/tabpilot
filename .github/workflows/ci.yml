@@ -37,3 +37,59 @@ jobs:
           name: swift-code-coverage-raw
           path: .build/debug/codecov
           if-no-files-found: warn
+
+  notarize:
+    runs-on: macos-latest
+    needs: test
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Setup Apple Signing Certificate
+        uses: apple-actions/import-codesign-certs@v2
+        with:
+          p12-file-base64: ${{ secrets.CODE_SIGNING_CERTIFICATE_BASE64 }}
+          p12-password: ${{ secrets.CODE_SIGNING_CERTIFICATE_PASSWORD }}
+
+      - name: Build and Create DMG
+        env:
+          APPLE_SIGNING_IDENTITY: "${{ secrets.APPLE_SIGNING_IDENTITY }}"
+          APPLE_ID: "${{ secrets.APPLE_ID }}"
+          APPLE_APP_PASSWORD: "${{ secrets.APPLE_APP_PASSWORD }}"
+        run: |
+          chmod +x scripts/build-and-notarize.sh
+          ./scripts/build-and-notarize.sh dmg
+
+      - name: Upload DMG
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808
+        with:
+          name: TabPilot-DMG
+          path: TabPilot-*.dmg
+          if-no-files-found: error
+
+      - name: Upload Release Notes
+        if: github.event_name == 'push'
+        run: |
+          echo "## TabPilot Release" > release-notes.md
+          echo "" >> release-notes.md
+          echo "Built on: $(date)" >> release-notes.md
+          echo "Commit: ${{ github.sha }}" >> release-notes.md
+          echo "" >> release-notes.md
+          echo "Download TabPilot.dmg from the artifacts." >> release-notes.md
+        shell: bash
+
+      - name: Create Release
+        if: github.event_name == 'push'
+        uses: softprops/action-gh-release@c9b11d5c2f1f3e23bb7c17da00d3a53f5a4e46e9
+        with:
+          files: TabPilot-*.dmg
+          body_path: release-notes.md
+          draft: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

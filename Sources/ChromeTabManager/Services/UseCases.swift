@@ -2,7 +2,7 @@ import Foundation
 
 @MainActor
 protocol ScanTabsUseCaseProtocol: Sendable {
-    func execute(progress: @escaping @Sendable (Int, String) -> Void) async throws -> (tabs: [TabInfo], telemetry: ScanTelemetry)
+    func execute(browser: Browser, progress: @escaping @Sendable (Int, String) -> Void) async throws -> (tabs: [TabInfo], telemetry: ScanTelemetry)
 }
 
 @MainActor
@@ -17,8 +17,8 @@ protocol ExportTabsUseCaseProtocol: Sendable {
 }
 
 struct DefaultScanTabsUseCase: ScanTabsUseCaseProtocol {
-    func execute(progress: @escaping @Sendable (Int, String) -> Void) async throws -> (tabs: [TabInfo], telemetry: ScanTelemetry) {
-        try await ChromeController.shared.scanAllTabsFast(progress: progress)
+    func execute(browser: Browser, progress: @escaping @Sendable (Int, String) -> Void) async throws -> (tabs: [TabInfo], telemetry: ScanTelemetry) {
+        try await browser.controller.scanAllTabsFast(progress: progress)
     }
 }
 

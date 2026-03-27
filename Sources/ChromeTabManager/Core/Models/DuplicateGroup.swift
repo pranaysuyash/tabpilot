@@ -6,12 +6,17 @@ struct DuplicateGroup: Identifiable, Sendable {
     let displayUrl: String
     var tabs: [TabInfo]
     
-    var oldestTab: TabInfo? {
-        tabs.min { $0.openedAt < $1.openedAt }
-    }
+    /// Pre-computed at creation time to avoid O(n) min scan on every view access
+    let oldestTab: TabInfo?
+    /// Pre-computed at creation time to avoid O(n) max scan on every view access
+    let newestTab: TabInfo?
     
-    var newestTab: TabInfo? {
-        tabs.max { $0.openedAt < $1.openedAt }
+    init(normalizedUrl: String, displayUrl: String, tabs: [TabInfo]) {
+        self.normalizedUrl = normalizedUrl
+        self.displayUrl = displayUrl
+        self.tabs = tabs
+        self.oldestTab = tabs.min { $0.openedAt < $1.openedAt }
+        self.newestTab = tabs.max { $0.openedAt < $1.openedAt }
     }
     
     var wastedCount: Int {

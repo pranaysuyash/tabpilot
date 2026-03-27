@@ -23,8 +23,7 @@ final class TabSelectionController {
     private var filterTask: Task<Void, Never>?
     private var searchDebounceTask: Task<Void, Never>?
     
-    // MARK: - Closure-based Providers (for cross-controller access)
-    var maxResultsProvider: (() -> Int)?
+    // MARK: - Closure-based Provider (for cross-controller access)
     private var _duplicateGroupsProvider: (() -> [DuplicateGroup])?
     
     var duplicateGroupsProvider: (() -> [DuplicateGroup])? {
@@ -118,7 +117,7 @@ final class TabSelectionController {
         let groups = duplicatesForCurrentMode
         let searchQuery = debouncedSearchQuery
         let viewModeStr = viewMode.rawValue
-        let maxResults = maxResultsProvider?() ?? 100
+        let maxResults = 100 // TODO: get from config
         let cacheKey = FilterCacheKey(searchQuery: searchQuery, viewMode: viewModeStr)
         
         if let cached = filteredResultsCache.get(cacheKey) {

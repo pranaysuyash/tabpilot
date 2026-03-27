@@ -5,17 +5,23 @@ import AppKit
 @MainActor
 final class AppViewModel: ObservableObject {
     // MARK: - Typealiases for backwards compatibility with Views
+    typealias DuplicateViewMode = ChromeTabManager.DuplicateViewMode
     typealias ExportFormat = ChromeTabManager.ExportFormat
     
     // MARK: - Feature Controllers
     let scanController: ScanController
     let tabSelectionController: TabSelectionController
     let undoController: UndoController
-    let licenseManager: LicenseManager
+    let licenseManager: LicenseManager = .shared
+    
+    // MARK: - Cross-Browser Support
+    @Published var selectedBrowser: Browser = .chrome
+    @Published var browserStatuses: [Browser: Bool] = [:]
     
     // MARK: - UI State
     @Published var toastMessage: String?
     @Published var showToast = false
+    @Published var showPaywall = false
     @Published var showPreferences = false
     @Published var isPreferencesOpen = false
     @Published var showReviewPlan = false
@@ -23,6 +29,24 @@ final class AppViewModel: ObservableObject {
     @Published var showConfirmation = false
     @Published var confirmationTitle = ""
     @Published var confirmationMessage = ""
+    @Published var confirmationLastResult: ConfirmationResult?
+    @Published var confirmationCanRetry = false
+    
+    struct ConfirmationResult: Equatable, Sendable {
+        let success: Bool
+        let closedCount: Int
+        let failedCount: Int
+        let ambiguousCount: Int
+        let errorMessage: String?
+        
+        static func success(closed: Int, failed: Int = 0, ambiguous: Int = 0) -> ConfirmationResult {
+            ConfirmationResult(success: true, closedCount: closed, failedCount: failed, ambiguousCount: ambiguous, errorMessage: nil)
+        }
+        
+        static func failure(closed: Int, failed: Int, ambiguous: Int, error: String) -> ConfirmationResult {
+            ConfirmationResult(success: false, closedCount: closed, failedCount: failed, ambiguousCount: ambiguous, errorMessage: error)
+        }
+    }
     
     // MARK: - Import/Export
     @Published var importPreviewTabs: [ImportTab] = []
@@ -93,8 +117,11 @@ final class AppViewModel: ObservableObject {
     var undoMessage: String { undoController.undoMessage }
     var undoTimeRemaining: Double { undoController.undoTimeRemaining }
     
-    // MARK: - More Computed
+    var isLicensed: Bool { licenseManager.isLicensed }
+    
     var hasDuplicates: Bool { scanController.hasDuplicates }
+    
+    // MARK: - More Computed
     var config: PersonaConfig { scanController.config }
     var healthMetrics: HealthMetrics? { scanController.healthMetrics }
     var domainGroups: [DomainGroup] { scanController.domainGroups }
@@ -155,11 +182,9 @@ final class AppViewModel: ObservableObject {
         self.scanController = ScanController()
         self.tabSelectionController = TabSelectionController()
         self.undoController = UndoController()
-        self.licenseManager = LicenseManager.shared
         self.closeUseCase = DefaultCloseTabsUseCase()
         self.exportUseCase = DefaultExportTabsUseCase()
         self.eventBus = .shared
-        self.cancellables = Set<AnyCancellable>()
         
         setupNotifications()
         wireUpControllers()
@@ -172,9 +197,6 @@ final class AppViewModel: ObservableObject {
     func wireUpControllers() {
         tabSelectionController.duplicateGroupsProvider = { [weak self] in
             self?.scanController.duplicateGroups ?? []
-        }
-        tabSelectionController.maxResultsProvider = { [weak self] in
-            self?.maxDuplicatesDisplay ?? 100
         }
     }
     
@@ -251,13 +273,22 @@ final class AppViewModel: ObservableObject {
     
     // MARK: - Scan Actions
     func scan() async {
+        scanController.selectedBrowser = selectedBrowser
         await scanController.scan()
         tabSelectionController.invalidateDuplicateCache()
     }
     
     func incrementalScan() async {
+        scanController.selectedBrowser = selectedBrowser
         await scanController.incrementalScan()
         tabSelectionController.invalidateDuplicateCache()
+    }
+    
+    // MARK: - Browser Status
+    func refreshBrowserStatuses() async {
+        for browser in Browser.allCases {
+            browserStatuses[browser] = await browser.controller.isRunning
+        }
     }
     
     // MARK: - Selection Actions
@@ -343,6 +374,9 @@ final class AppViewModel: ObservableObject {
         if totalFailed > 0 {
             let userError = UserFacingError.tabCloseFailed(count: totalFailed)
             ErrorPresenter.shared.present(userError)
+            confirmationLastResult = .failure(closed: totalClosed, failed: totalFailed, ambiguous: totalAmbiguous, error: userError.localizedDescription)
+        } else {
+            confirmationLastResult = .success(closed: totalClosed, failed: totalFailed, ambiguous: totalAmbiguous)
         }
         
         if totalAmbiguous > 0 {
@@ -420,14 +454,23 @@ final class AppViewModel: ObservableObject {
     func executeConfirmation() async {
         showConfirmation = false
         if let action = confirmationAction {
+            confirmationCanRetry = true
             await action()
+            confirmationAction = nil
         }
-        confirmationAction = nil
+    }
+    
+    func retryLastConfirmation() async {
+        guard confirmationCanRetry, let action = confirmationAction else { return }
+        confirmationLastResult = nil
+        await action()
     }
     
     func cancelConfirmation() {
         showConfirmation = false
         confirmationAction = nil
+        confirmationLastResult = nil
+        confirmationCanRetry = false
     }
     
     // MARK: - Undo
@@ -547,51 +590,6 @@ final class AppViewModel: ObservableObject {
     
     func closeAllDuplicatesDirectly() async {
         await closeAllDuplicates(keepOldest: true)
-    }
-    
-    func closeTabsForDomain(_ domain: String) async {
-        let tabsToClose = tabs.filter { tab in
-            guard let url = URL(string: tab.url) else { return false }
-            return url.host?.contains(domain) == true
-        }
-        
-        guard !tabsToClose.isEmpty else {
-            displayToast(message: "No tabs found for \(domain)")
-            return
-        }
-        
-        guard await ChromeController.shared.isChromeRunning() else {
-            let userError = UserFacingError.chromeNotRunning
-            ErrorPresenter.shared.present(userError)
-            return
-        }
-        
-        undoController.startUndoTimer(with: tabsToClose)
-        
-        let byWindow = Dictionary(grouping: tabsToClose) { $0.windowId }
-        var totalClosed = 0
-        var totalFailed = 0
-        var totalAmbiguous = 0
-        
-        for (windowId, windowTabs) in byWindow {
-            let targets = windowTabs.map { (url: $0.url, title: $0.title) }
-            let result = await closeUseCase.execute(windowId: windowId, targets: targets)
-            totalClosed += result.closed
-            totalFailed += result.failed
-            totalAmbiguous += result.ambiguous
-        }
-        
-        for tab in tabsToClose.prefix(totalClosed) {
-            eventBus.publish(TabClosedEvent(tabId: tab.id, timestamp: Date()))
-        }
-        
-        if totalFailed > 0 {
-            displayToast(message: "Closed \(totalClosed) tabs, failed \(totalFailed)")
-        } else {
-            displayToast(message: "Closed \(totalClosed) tabs for \(domain)")
-        }
-        
-        await scan()
     }
     
     // MARK: - Toast
@@ -971,7 +969,7 @@ final class AppViewModel: ObservableObject {
         guard requestedCount > 0 else { return true }
         return true
     }
-    
+
     private func closeConfirmationMessage(for count: Int) -> String {
         return "This will close \(count) selected tabs. You can undo this action for 30 seconds."
     }

@@ -15,6 +15,7 @@
 - Prefer additive, minimal, testable edits.
 - Verify claims with fresh command output before reporting success.
 - Do not commit or push unless explicitly requested in the current conversation.
+- Load and follow local runtime rules in `.agent/AGENTS.md` when present.
 
 ## Safety notes
 

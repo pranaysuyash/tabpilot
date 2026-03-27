@@ -31,6 +31,7 @@ Before claiming completion, verify with fresh evidence:
 
 When branch workflow changes, update relevant docs so humans and agents stay aligned:
 
+- `.agent/AGENTS.md`
 - `Docs/SESSION_CONTEXT.md`
 - `Docs/PROJECT_TRACKING.md`
 - `Docs/RECOVERY_README.md`
