@@ -18,10 +18,10 @@ This document outlines the update strategy for Chrome Tab Manager (TabPilot) usi
    - Contains release notes, version info, and download URLs
    - Secured with HTTPS only
 
-2. **Update Signatures**: DSA signatures
-   - Generated with private key kept offline
-   - Public key bundled in app
-   - Ensures update authenticity
+2. **Update Signatures**: Ed25519 signatures (Sparkle 2)
+   - Generated with a private signing key kept offline
+   - Public Ed25519 key bundled in the app
+   - Ensures update authenticity for Sparkle 2 clients
 
 3. **Delta Updates**: 
    - Generated using `delta` tool from Sparkle
@@ -65,9 +65,9 @@ This document outlines the update strategy for Chrome Tab Manager (TabPilot) usi
 
 ### App Integration
 - Sparkle bundled via Swift Package Manager
-- `SUUpdater` delegate implemented in AppDelegate
+- `SPUStandardUpdaterController` owned by `UpdateManager`
 - Feed URL configured in Info.plist
-- Public key embedded in app resources
+- Public Ed25519 key embedded in app resources
 
 ### Required Info.plist Entries
 Add these entries to your `Info.plist` file for Sparkle to function properly:
@@ -100,24 +100,23 @@ Add these entries to your `Info.plist` file for Sparkle to function properly:
 
 ### Required App Changes
 1. Add Sparkle dependency via Swift Package Manager
-2. Implement `SUUpdaterDelegate` methods:
-   - `updaterDidFindValidUpdate:` - Customize update UI
-   - `updater:willDownloadUpdate:` - Optional preparation
-   - `updaterDidNotFindUpdate:` - Handle "up to date" case
-   - `updater:didFailToUpdateWithError:` - Error handling
+2. Initialize `SPUStandardUpdaterController` early in app startup (for example in `UpdateManager`)
+3. Wire the menu item or button to `checkForUpdates(_:)` / `checkForUpdates(nil)` on the updater controller
+4. Optionally implement Sparkle 2 delegate hooks (`SPUUpdaterDelegate` / `SPUStandardUserDriverDelegate`) when custom behavior is needed:
+   - update discovery / filtering
+   - download lifecycle hooks
+   - failure reporting
+   - custom user-driver presentation
 
-### Generating DSA Keys for Signing
-Sparkle uses DSA (Digital Signature Algorithm) for signing updates. Generate your keypair:
+### Generating Signing Keys
+Sparkle 2 uses Ed25519 signing by default. Generate your keypair with Sparkle's tooling:
 
 ```bash
-# 1. Generate private key (keep this secret!)
-openssl dsaparam -genkey 2048 -outform der -out DSAKey.pem
-
-# 2. Extract public key in PEM format (bundle this in your app)
-openssl dsa -in DSAKey.pem -pubout -outform der -outform PEM -out sparkle_pub.pem
+# Generate a Sparkle Ed25519 key pair (keep the private key secret)
+generate_keys
 ```
 
-**Important**: Never commit your private key (`DSAKey.pem`) to version control!
+**Important**: Never commit your private signing key to version control.
 
 ### Security Considerations
 - Private key never leaves secure build environment
@@ -191,8 +190,7 @@ Your appcast.xml is hosted at the URL specified in `SUFeedURL`. Here's the struc
       <sparkle:version>2.5.0</sparkle:version>
       <sparkle:shortVersionString>2.5.0</sparkle:shortVersionString>
       <sparkle:releaseDate>2026-03-26T12:00:00Z</sparkle:releaseDate>
-      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-      <sparkle:dsaSignature>MCwCFAhRVIx4q3n5l...</sparkle:dsaSignature>
+         <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
       <description><![CDATA[
         <h2>What's New in TabPilot 2.5.0</h2>
         <ul>
@@ -203,7 +201,7 @@ Your appcast.xml is hosted at the URL specified in `SUFeedURL`. Here's the struc
       ]]></description>
       <enclosure url="https://updates.tabpilot.app/TabPilot-2.5.0.dmg"
                  sparkle:length="52428800"
-                 sparkle:edSignature="MCwCFAhRVIx4q3n5l..."
+                 sparkle:edSignature="base64-ed25519-signature-goes-here"
                  type="application/octet-stream"/>
     </item>
     
@@ -221,7 +219,7 @@ Your appcast.xml is hosted at the URL specified in `SUFeedURL`. Here's the struc
 | `sparkle:shortVersionString` | User-visible version (CFBundleShortVersionString) | Yes |
 | `sparkle:releaseDate` | ISO 8601 date of release | Yes |
 | `sparkle:minimumSystemVersion` | Minimum macOS version required | No |
-| `sparkle:dsaSignature` | DSA signature for the download | Yes |
+| `sparkle:dsaSignature` | Legacy DSA signature for Sparkle 1 clients | No |
 | `enclosure url` | Direct download URL for the update | Yes |
 | `enclosure sparkle:length` | File size in bytes | Yes |
 | `enclosure sparkle:edSignature` | Ed25519 signature (Sparkle 2.x) | No |
@@ -229,14 +227,11 @@ Your appcast.xml is hosted at the URL specified in `SUFeedURL`. Here's the struc
 ### Generating Sparkle Signatures
 
 ```bash
-# Sign a DMG with DSA (traditional)
-openssl dgst -sha1 -binary -sign DSAKey.pem < TabPilot.dmg | base64
-
 # Sign a DMG with Ed25519 (Sparkle 2.x)
 ./sign_update TabPilot.dmg Ed25519Key.pem
 
 # Get signature for appcast item
-openssl dgst -sha1 -binary -sign DSAKey.pem < TabPilot-2.5.0.dmg | base64
+./sign_update TabPilot-2.5.0.dmg Ed25519Key.pem
 ```
 
 ### Delta Updates

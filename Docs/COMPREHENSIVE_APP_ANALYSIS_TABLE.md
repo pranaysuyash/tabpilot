@@ -367,5 +367,3 @@
 **END OF COMPREHENSIVE APP ANALYSIS**
 
 **175+ components analyzed across 13 categories**
-ENDOFTABLE
-echo "App analysis table created"

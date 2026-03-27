@@ -2,7 +2,7 @@
 
 ## Endpoint
 
-```
+```http
 POST /webhooks/dodo
 ```
 
@@ -65,7 +65,17 @@ router.post('/webhooks/dodo', async (req, res) => {
   const secret = process.env.DODO_WEBHOOK_SECRET;
 
   // Verify webhook authenticity
-  if (signature && !verifyDodoSignature(req.body, signature, secret)) {
+  if (!secret) {
+    console.error('Webhook secret is not configured');
+    return res.status(500).json({ error: 'Webhook verification unavailable' });
+  }
+
+  if (!signature) {
+    console.error('Missing webhook signature');
+    return res.status(401).json({ error: 'Missing signature' });
+  }
+
+  if (!verifyDodoSignature(req.body, signature, secret)) {
     console.error('Invalid webhook signature');
     return res.status(401).json({ error: 'Invalid signature' });
   }
@@ -135,7 +145,7 @@ CREATE INDEX idx_purchases_checkout ON purchases(checkout_id);
 
 ## Flow Diagram
 
-```
+```text
 ┌─────────────┐      POST /webhooks/dodo      ┌──────────────────┐
 │    Dodo     │ ──────────────────────────────▶│   Our Backend    │
 │  Payments   │                               │                  │

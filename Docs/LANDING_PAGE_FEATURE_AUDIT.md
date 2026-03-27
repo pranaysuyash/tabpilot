@@ -66,7 +66,7 @@
 
 ---
 
-## 🔴 MAJOR DISCREPANCIES (Critical Issues)
+## 🔴 MAJOR DISCREPANCIES (3 critical issues + 1 positioning gap)
 
 ### 1. Chrome Extension - Included or Separate?
 
@@ -104,7 +104,7 @@
 
 ---
 
-### 3. "Works Offline" Claim
+### 3. Verification Note — "Works Offline" Claim
 
 **Landing Page:**
 > "Works offline, no Chrome extension needed"
@@ -182,21 +182,19 @@ Lists "Persona-adaptive UI (Light/Standard/Power)" as a power feature.
 
 ---
 
-### 4. Licensing/Tier System
-**Status:** LicenseController exists with .free/.pro tiers
+### 4. Purchase / Download Flow
+**Status:** Current repo docs describe a direct-purchase download model, not an in-app free/pro tier
 
-**Landing Page:** Only shows single $19.99 price
+**Landing Page:** Shows a single $19.99 purchase path
 
 **Missing:**
-- No mention of Free tier (if it exists)
-- No mention of Pro tier features
-- No comparison table
+- No explicit note that purchase happens on the landing page
+- No clear copy that the shipped app has no in-app licensing gate
 
-**Issue:** If there's a free tier, it's not advertised. If everything is Pro, clarify.
+**Issue:** Historical free/pro references in older docs can conflict with the current direct-download model.
 
-**Fix:** Either:
-- Add "Free tier available" with limitations
-- Or: "No free trial - $19.99 unlocks everything"
+**Fix:** Clarify the landing-page flow as:
+> "Buy once on the landing page, download the notarized app, and use all features without in-app license prompts."
 
 ---
 

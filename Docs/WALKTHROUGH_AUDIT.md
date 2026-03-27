@@ -7,7 +7,7 @@
 4.  **Implicit Debt Analysis**: Deep-dive into `AppViewModel.swift` and other core files to find forced unwraps and architectural issues.
 5.  **Multi-Agent Verification**: Rescanned after other agents merged changes to verify completions.
 6.  **Code-First Verification**: Manually verified features (Cross-browser, Scheduled cleanup) to ensure accuracy beyond documentation.
-7.  **Consolidation**: Finalized the [CONSOLIDATED_TODOS.md](file:///Users/pranay/Projects/chrome-tab-manager-swift/Docs/CONSOLIDATED_TODOS.md) report.
+7.  **Consolidation**: Finalized the [`CONSOLIDATED_TODOS.md`](./CONSOLIDATED_TODOS.md) report.
 
 ## Audit Results
 - **Major Successes**: Multi-window safety and God-object reduction are confirmed.

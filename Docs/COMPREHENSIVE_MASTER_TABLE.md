@@ -86,34 +86,32 @@
 ### By Grade:
 | Grade | Count | Percentage |
 |-------|-------|------------|
-| **A+ (Super)** | 43 | 57% |
-| **A (Excellent)** | 17 | 23% |
-| **B+ (Good)** | 1 | 1% |
-| **B (Good)** | 1 | 1% |
-| **C (Basic)** | 1 | 1% |
-| **D (Missing)** | 1 | 1% |
-| **N/A (Deferred)** | 4 | 5% |
+| **A+ (Super)** | 47 | 62.7% |
+| **A (Excellent)** | 19 | 25.3% |
+| **B+ (Good)** | 1 | 1.3% |
+| **B (Good)** | 1 | 1.3% |
+| **C (Basic)** | 2 | 2.7% |
+| **D (Missing)** | 2 | 2.7% |
+| **N/A (Deferred)** | 3 | 4.0% |
 | **TOTAL** | **75** | **100%** |
 
-### By Status:
+### By Status (unique row classification):
 | Status | Count | Percentage |
 |--------|-------|------------|
-| ✅ Delivered/Done | 59 | 79% |
-| ✅ Accurate | 8 | 11% |
-| ✅ Fixed/Done | 7 | 9% |
-| ⚠️ Hidden | 10 | 13% |
-| ⏳ Pending | 1 | 1% |
-| ⏳ Deferred | 4 | 5% |
+| ✅ Implemented / Done / Fixed | 45 | 60.0% |
+| ✅ Verified Accurate / Ready | 14 | 18.7% |
+| ⚠️ Implemented but under-promoted/basic | 11 | 14.7% |
+| ⏳ Pending / Deferred / Future | 5 | 6.7% |
 
 ### Overall:
 | Metric | Value |
 |--------|-------|
 | **Total Items** | 75 |
-| **Delivered** | 74 (99%) |
-| **Super (A+)** | 43 (57%) |
-| **Excellent (A)** | 17 (23%) |
-| **Good or better** | 62 (83%) |
-| **Below A** | 3 (4%) |
+| **Implemented or substantiated** | 70 (93%) |
+| **Super (A+)** | 47 (63%) |
+| **Excellent (A)** | 19 (25%) |
+| **Good or better** | 68 (91%) |
+| **Below A** | 4 (5%) |
 | **Overall Grade** | **A (94%)** |
 
 ---
@@ -121,9 +119,9 @@
 ## KEY FINDINGS
 
 ### Strengths:
-✅ **57% are Super (A+)** - Exceptional quality
-✅ **80% are A or better** - Excellent delivery  
-✅ **99% delivered** - Only 1 missing
+✅ **63% are Super (A+)** - Exceptional quality
+✅ **91% are B or better** - Excellent delivery  
+✅ **93% are implemented or otherwise substantiated** - Only 5 rows remain pending/deferred/future
 ✅ **All core features** - 100% complete
 
 ### Weaknesses:

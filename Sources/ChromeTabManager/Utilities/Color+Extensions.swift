@@ -5,8 +5,8 @@ import SwiftUI
 extension Color {
     // MARK: - Adaptive Text Colors for Colored Backgrounds
     
-    /// Text color that adapts to the current color scheme for use on colored backgrounds
-    /// Returns white in dark mode, black in light mode for maximum contrast
+    /// Text color for use on colored backgrounds.
+    /// Currently always returns white for maximum contrast against vibrant colors.
     static var adaptiveTextOnColor: Color {
         Color(nsColor: .white)
     }

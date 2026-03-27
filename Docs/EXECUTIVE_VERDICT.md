@@ -10,7 +10,7 @@ Chrome Tab Manager (TabPilot) has strong core functionality but is missing criti
 ## Biggest Launch Blockers (P0)
 
 1. **Landing Page Not Wired** — Landing page has no Dodo checkout, no download link, no email restore flow
-   - **Status**: Polished static site exists at `/Users/pranay/Projects/chrome-tab-manager-landing/`
+   - **Status**: Polished static site exists in the sibling `chrome-tab-manager-landing/` repository (not included in this workspace)
    - **Remaining**: Wire Dodo Payments checkout, add S3 download link, add "already purchased?" email restore, fix branding to "TabPilot"
 
 2. **No Update Mechanism** — Users would need to manually reinstall for every update

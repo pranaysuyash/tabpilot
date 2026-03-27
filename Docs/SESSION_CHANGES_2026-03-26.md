@@ -236,7 +236,7 @@ User clicks "Close Selected"
 | `Sources/.../Views/CleanupImpactView.swift` | Before/after metrics UI |
 | `Docs/SESSION_CHANGES_2026-03-26.md` | This file |
 
-### Modified files (6)
+### Modified files (7)
 | File | Changes |
 |------|---------|
 | `Package.swift` | Added `TabTimeHost` executable target |

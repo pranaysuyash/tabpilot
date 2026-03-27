@@ -3,6 +3,7 @@ import UniformTypeIdentifiers
 
 struct ContentView: View {
     @StateObject private var viewModel: TabManagerViewModel
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var exportDocument: TabExportDocument?
     @State private var exportDefaultFilename = "ChromeTabs.md"
     @State private var showingFileExporter = false
@@ -25,6 +26,9 @@ struct ContentView: View {
         }
         .sheet(isPresented: $viewModel.showPreferences) {
             PreferencesView(viewModel: viewModel)
+        }
+        .sheet(isPresented: $viewModel.showExtensionInstallationGuide) {
+            ExtensionInstallationGuide()
         }
         .sheet(isPresented: $showingArchiveSheet) {
             ArchiveSheetView(
@@ -49,6 +53,12 @@ struct ContentView: View {
                     viewModel.isImportResultPresented = false
                 }
             )
+        }
+        .sheet(isPresented: Binding(
+            get: { !hasCompletedOnboarding },
+            set: { hasCompletedOnboarding = !$0 }
+        )) {
+            OnboardingView(hasCompletedOnboarding: $hasCompletedOnboarding)
         }
         .toolbar {
             AppToolbarContent(viewModel: viewModel)

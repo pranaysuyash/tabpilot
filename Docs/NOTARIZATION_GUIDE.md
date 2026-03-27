@@ -88,7 +88,7 @@ The submission will return one of three statuses:
 
 If successful, you'll receive a log URL you can check:
 ```bash
-xcrur notarytool log <id> --keychain-profile "AC_PASSWORD"
+xcrun notarytool log <id> --keychain-profile "AC_PASSWORD"
 ```
 
 ### 5. Staple the Notarization Ticket
@@ -160,6 +160,13 @@ set -e
 APP_PATH="build/Release/ChromeTabManager.app"
 DMG_PATH="dist/TabPilot-${VERSION}.dmg"
 KEYCHAIN_PROFILE="AC_PASSWORD"
+PAYLOAD_DIR="$(mktemp -d /tmp/tabpilot-notarize.XXXXXX)"
+
+cleanup() {
+  rm -rf "$PAYLOAD_DIR"
+}
+
+trap cleanup EXIT
 
 # Sign the app
 echo "Signing app..."
@@ -170,8 +177,11 @@ codesign --sign "Developer ID Application: Your Name (TEAMID)" \
 
 # Create DMG
 echo "Creating DMG..."
+cp -R "$APP_PATH" "$PAYLOAD_DIR/ChromeTabManager.app"
+ln -s /Applications "$PAYLOAD_DIR/Applications"
+
 hdiutil create "$DMG_PATH" \
-  -srcfolder <(cp -R "$APP_PATH" /tmp/Payload && ln -s /Applications /tmp/Payload/Applications && echo /tmp/Payload) \
+  -srcfolder "$PAYLOAD_DIR" \
   -volname "TabPilot" \
   -fs HFS+ \
   -UDZO

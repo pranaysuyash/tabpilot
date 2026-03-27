@@ -1,10 +1,10 @@
 import SwiftUI
+import AppKit
 
 struct NotificationSettingsView: View {
     @StateObject private var notificationManager = TabTimeNotificationManager.shared
     @State private var newDomain: String = ""
     @State private var newThreshold: Double = 30
-    @State private var showingAuthorizationAlert = false
     
     var body: some View {
         Form {

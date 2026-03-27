@@ -28,6 +28,11 @@ This document outlines the complete process for building, signing, notarizing, a
 git checkout staging
 git pull origin staging
 
+# Define release versions before using them later in this document
+VERSION="1.2.3"
+SHORT_VERSION="$VERSION"
+PREV_VERSION="1.2.2"
+
 # Update version number in Sources/ChromeTabManager/Version.swift
 # Format: MAJOR.MINOR.PATCH (e.g., 1.2.3)
 
@@ -83,7 +88,7 @@ xcrun notarytool submit "/build-output/updates/TabPilot-${VERSION}.dmg" \
   --wait
 
 # Check notarization status (if not waiting)
-# xcrur notarytool log <id> --keychain-profile "AC_PASSWORD"
+# xcrun notarytool log <id> --keychain-profile "AC_PASSWORD"
 
 # Staple notarization ticket to DMG
 xcrun stapler staple "/build-output/updates/TabPilot-${VERSION}.dmg"

@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import AppKit
 
 /// Manages keyboard focus and navigation throughout the app
 @MainActor
@@ -74,7 +75,8 @@ struct KeyboardShortcutsHelpView: View {
         ("Return", "Activate current item (focus tab)", "Actions"),
         ("⌘ + Return", "Close current duplicate group", "Actions"),
         ("⌘ + Delete", "Close selected tabs", "Actions"),
-        ("⌘ + R", "Scan Chrome tabs", "Commands"),
+        ("⌘ + S", "Scan tabs", "Commands"),
+        ("⌘ + ⇧ + R", "Refresh tabs", "Commands"),
         ("⌘ + F", "Focus filter/search field", "Commands"),
         ("⌘ + Shift + P", "Review cleanup plan", "Commands"),
         ("⌘ + Shift + S", "Smart select tabs", "Commands"),

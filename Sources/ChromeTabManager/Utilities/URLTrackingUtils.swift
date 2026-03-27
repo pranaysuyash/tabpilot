@@ -1,10 +1,5 @@
 import Foundation
 
-struct TrackedSourceInfo {
-    let name: String
-    let parameter: String
-}
-
 public func extractTrackingSources(from urlString: String) -> [String] {
     guard let url = URL(string: urlString),
           let components = URLComponents(url: url, resolvingAgainstBaseURL: false),

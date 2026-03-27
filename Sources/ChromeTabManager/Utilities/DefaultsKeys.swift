@@ -58,4 +58,5 @@ enum DefaultsKeys {
     static let extensionDataReceived = "extensionDataReceived"
     static let extensionInstallationDontShowAgain = "extensionInstallationDontShowAgain"
     static let extensionInstallationLastPromptDate = "extensionInstallationLastPromptDate"
+    static let extensionId = "extensionId"
 }

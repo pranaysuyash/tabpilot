@@ -10,6 +10,10 @@ let package = Package(
             name: "ChromeTabManager",
             swiftSettings: [.enableExperimentalFeature("StrictConcurrency")]
         ),
+        .executableTarget(
+            name: "TabTimeHost",
+            swiftSettings: [.enableExperimentalFeature("StrictConcurrency")]
+        ),
         .testTarget(
             name: "ChromeTabManagerTests",
             dependencies: ["ChromeTabManager"],

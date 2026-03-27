@@ -26,6 +26,7 @@ final class AppViewModel: ObservableObject {
     @Published var isPreferencesOpen = false
     @Published var showReviewPlan = false
     @Published var showArchiveHistory = false
+    @Published var showExtensionInstallationGuide = false
     @Published var showConfirmation = false
     @Published var confirmationTitle = ""
     @Published var confirmationMessage = ""
@@ -229,6 +230,20 @@ final class AppViewModel: ObservableObject {
                 self?.showPreferences = true
             }
             .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: .showExtensionGuide)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.showExtensionInstallationGuide = true
+            }
+            .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: .showArchiveHistory)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.showArchiveHistory = true
+            }
+            .store(in: &cancellables)
         
         NotificationCenter.default.publisher(for: .reviewPlan)
             .receive(on: DispatchQueue.main)
@@ -241,6 +256,14 @@ final class AppViewModel: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 Task { await self?.closeAllDuplicatesDirectly() }
+            }
+            .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: .closeTabsForDomain)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] notification in
+                guard let domain = notification.userInfo?["domain"] as? String else { return }
+                Task { await self?.closeTabsForDomain(domain) }
             }
             .store(in: &cancellables)
     }
@@ -276,12 +299,14 @@ final class AppViewModel: ObservableObject {
         scanController.selectedBrowser = selectedBrowser
         await scanController.scan()
         tabSelectionController.invalidateDuplicateCache()
+        await TabTimeStore.shared.saveDailyRecord()
     }
     
     func incrementalScan() async {
         scanController.selectedBrowser = selectedBrowser
         await scanController.incrementalScan()
         tabSelectionController.invalidateDuplicateCache()
+        await TabTimeStore.shared.saveDailyRecord()
     }
     
     // MARK: - Browser Status
@@ -367,7 +392,7 @@ final class AppViewModel: ObservableObject {
             totalAmbiguous += result.ambiguous
         }
         
-        for tab in toClose.prefix(totalClosed) {
+        for tab in toClose {
             eventBus.publish(TabClosedEvent(tabId: tab.id, timestamp: Date()))
         }
         
@@ -456,7 +481,10 @@ final class AppViewModel: ObservableObject {
         if let action = confirmationAction {
             confirmationCanRetry = true
             await action()
-            confirmationAction = nil
+            if confirmationLastResult?.success == true {
+                confirmationAction = nil
+                confirmationCanRetry = false
+            }
         }
     }
     
@@ -471,6 +499,23 @@ final class AppViewModel: ObservableObject {
         confirmationAction = nil
         confirmationLastResult = nil
         confirmationCanRetry = false
+    }
+
+    // MARK: - Domain Close Action
+    func closeTabsForDomain(_ domain: String) async {
+        let normalizedDomain = domain.lowercased()
+        let tabsForDomain = tabs.filter { tab in
+            let tabDomain = tab.domain.lowercased()
+            return tabDomain == normalizedDomain || tabDomain.hasSuffix(".\(normalizedDomain)")
+        }
+
+        guard !tabsForDomain.isEmpty else {
+            displayToast(message: "No open tabs found for \(domain)")
+            return
+        }
+
+        selectedTabIds = Set(tabsForDomain.map(\.id))
+        await closeSelectedTabs()
     }
     
     // MARK: - Undo

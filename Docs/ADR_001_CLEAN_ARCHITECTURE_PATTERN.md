@@ -268,8 +268,12 @@ Clean architecture would enable:
 
 ```swift
 // Mock repository for testing
-class MockChromeTabRepository: ChromeTabRepositoryProtocol {
+actor MockChromeTabRepository: ChromeTabRepositoryProtocol {
     var mockScanResult: ScanResult = .init(windows: [], stats: .empty, telemetry: .empty)
+
+    func setMockScanResult(_ result: ScanResult) {
+        mockScanResult = result
+    }
     
     func scanAllTabs(...) async throws -> ScanResult {
         return mockScanResult
@@ -279,7 +283,7 @@ class MockChromeTabRepository: ChromeTabRepositoryProtocol {
 // Test ViewModel without Chrome dependency
 func testScanUpdatesUI() async {
     let mock = MockChromeTabRepository()
-    mock.mockScanResult = ScanResult(windows: [...], stats: ..., telemetry: ...)
+    await mock.setMockScanResult(ScanResult(windows: [...], stats: ..., telemetry: ...))
     
     let vm = AppViewModel(tabRepository: mock)
     await vm.scan()

@@ -10,7 +10,8 @@ This document details the comprehensive keyboard navigation and VoiceOver access
 - **⌘ + Shift + D**: Close duplicates (global hotkey)
 
 ### App Menu Shortcuts (Tabs menu)
-- **⌘ + R**: Scan Chrome tabs
+- **⌘ + S**: Scan tabs
+- **⌘ + ⇧ + R**: Refresh tabs
 - **⌘ + Shift + P**: Review cleanup plan
 - **⌘ + Shift + S**: Smart select tabs
 - **⌘ + Delete**: Close selected tabs
@@ -87,7 +88,7 @@ Comprehensive help sheet showing all 18 keyboard shortcuts organized by category
 ## Testing Keyboard Navigation
 
 ### Full Workflow Test
-1. Press ⌘ + R to scan
+1. Press ⌘ + S to scan
 2. Press Tab to navigate to list/table
 3. Use ↑/↓ to navigate items
 4. Press Space to select tabs
@@ -105,7 +106,8 @@ Comprehensive help sheet showing all 18 keyboard shortcuts organized by category
 ## Power User Features
 
 ### Complete Trackpad-Free Workflow
-1. **Scan**: ⌘ + R
+1. **Scan**: ⌘ + S
+2. **Refresh**: ⌘ + ⇧ + R
 2. **Navigate**: Tab, then ↑/↓
 3. **Select**: Space
 4. **Review**: ⌘ + Shift + P

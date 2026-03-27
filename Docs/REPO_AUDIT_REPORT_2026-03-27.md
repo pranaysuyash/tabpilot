@@ -1,7 +1,7 @@
 # TabPilot: Repo-First Audit Report (v1.0)
 
 ## 1. Executive Summary
-TabPilot is a high-utility macOS application designed with a "Security-First" philosophy. The repository reveals a sophisticated engineering foundation (Swift Actors, Hardware-backed signing) that is currently hindered by significant maintainability debt. The presence of redundant recovery files and a manual build-pipeline makes the repo high-risk for multi-developer collaboration and safe iteration.
+TabPilot is a high-utility macOS application designed with a "Security-First" philosophy. The repository reveals a sophisticated engineering foundation (Swift actors, hardware-backed signing) that is currently hindered more by documentation drift and a manual build pipeline than by source-level sprawl.
 
 - **Overall Engineering Grade**: **B**
 - **Overall Score**: **7.8 / 10 (Weighted)**
@@ -9,11 +9,11 @@ TabPilot is a high-utility macOS application designed with a "Security-First" ph
 
 ### Biggest Strengths
 - **Hardware-Backed Trust**: Secure Enclave integration for audit logging is exemplary.
-- **Zero-Dependency Core**: Package.swift reveals a purely native footprint.
+- **Observed — Zero-Dependency Core**: `Package.swift` is present and declares a purely native package with no third-party Swift package dependencies.
 - **Strict Concurrency**: Swift 6 ready with high-fidelity actor isolation.
 
 ### Biggest Risks
-- **Recovery File Bloat**: 23+ redundant `*Recovery.swift` files cause namespace pollution and logical drift.
+- **Observed — Historical Recovery Doc Drift**: recovery-related docs still describe prior `*Recovery.swift` incidents, but the current workspace does not contain active `*Recovery.swift` source files.
 - **Manual Build Pipeline**: `run.sh` is fragile and depends on manual plist generation.
 - **Test Gap**: Critical shortage of unit tests for the complex AppleScript-to-Model transformation layer.
 
@@ -40,7 +40,7 @@ TabPilot is a high-utility macOS application designed with a "Security-First" ph
 | **Architecture** | DI | Dependency Injection | **A** | 8 | `DIContainer.swift:4` |
 | **Logic** | Normalization | URL Tracking Filter | **A+** | 9 | `ChromeController.swift:658` |
 | **Security** | Auditing | Enclave Signing | **A++** | 10 | `SecurityAuditLogger.swift:56` |
-| **Maintenance** | Hygiene | Recovery file bloat | **D** | 3 | `Managers/`, `Models/` |
+| **Maintenance** | Hygiene | Historical recovery-state drift in docs | **C-** | 4 | `Docs/SESSION_DECISIONS.md`, `Docs/RECOVERY_VERIFICATION_REPORT_2026-03-27.md` |
 | **Maintenance** | Build | Bundling scripts | **C** | 5 | `run.sh:67` |
 | **Quality** | Testing | Unit Coverage | **D** | 3 | `Tests/` |
 | **UI** | Decomposition | View/VM separation | **B-** | 6 | `SuperUserTableView.swift` |
@@ -49,21 +49,21 @@ TabPilot is a high-utility macOS application designed with a "Security-First" ph
 
 ## 4. Key Findings by Area
 
-### 🟢 REPO-001 (P0): Recovery File Redundancy
+### 🟢 REPO-001 (P1): Historical Recovery-State Drift
 - **Area**: Maintainability / Hygiene
-- **Path**: Multiple (`Managers/`, `Models/`, etc.)
-- **Severity**: **P0** (Critical blocker for team scale)
-- **Evidence**: `AutoCleanupManagerRecovery.swift`, `TabEntityRecovery.swift`, etc.
-- **Why it matters**: Developers must navigate 2x the source files. High risk of fixing bugs in the wrong file.
-- **Fix Direction**: Delete all `*Recovery.swift` files once core logic is verified.
+- **Path**: `Docs/SESSION_DECISIONS.md`, `Docs/RECOVERY_VERIFICATION_REPORT_2026-03-27.md`
+- **Severity**: **P1**
+- **Observed**: current workspace audits and source listings no longer show active `*Recovery.swift` source files, but multiple docs still describe them as current-state blockers.
+- **Why it matters**: stale historical findings can mislead later audits and overstate present maintainability risk.
+- **Fix Direction**: preserve the history, but label recovery incidents as historical and keep current-state audit claims evidence-backed.
 
-### 🔴 REPO-002 (P0): Unstable Tab Identifiers
-- **Area**: Persistence Reliability
-- **Path**: `ChromeController.swift:60`
-- **Severity**: **P0**
-- **Evidence**: `String(contentString.hashValue)`
-- **Inferred Consequence**: Tab history and "Undo" will fail after every app restart.
-- **Fix Direction**: Replace `.hashValue` with SHA256/MD5.
+### 🔴 REPO-002 (P2): Stale Hashing Evidence in Earlier Audit Drafts
+- **Area**: Persistence Reliability / Audit Accuracy
+- **Path**: Earlier audit notes, not current `Sources/**`
+- **Severity**: **P2**
+- **Observed**: current `Sources/**` no longer contains `hashValue` evidence for tab identifier generation.
+- **Why it matters**: stale source references weaken confidence in the rest of the audit.
+- **Fix Direction**: keep identifier stability covered by regression tests and remove obsolete source citations from current-state reports.
 
 ### 🟡 REPO-003 (P1): Fragile build/plist generation
 - **Area**: Operations / Release
@@ -79,8 +79,8 @@ TabPilot is a high-utility macOS application designed with a "Security-First" ph
 
 | ID | Title | Priority | Effort | Acceptance Criteria |
 | :--- | :--- | :--- | :--- | :--- |
-| **REPO-001** | Purge all `*Recovery.swift` | **P0** | Low | `/` search for "Recovery" returns 0 hits (excluding actual logic). |
-| **REPO-002** | Correct Tab ID Hashing | **P0** | Med | `stableTabId` returns same ID for same URL/Title across launches. |
+| **REPO-001** | Distinguish historical recovery incidents from current-state findings | **P1** | Low | Recovery-related docs clearly mark prior incidents as historical, not current blockers. |
+| **REPO-002** | Add regression coverage for stable tab identifiers | **P1** | Med | Identifier behavior is covered by tests rather than stale source snapshots. |
 | **REPO-004** | Fix Global Branding | **P1** | Med | Global search "Chrome Tab Manager" returns 0 hits. |
 | **REPO-005** | Expand Unit Test Suite | **P1** | High | 80%+ coverage for `Core/` and `Managers/`. |
 

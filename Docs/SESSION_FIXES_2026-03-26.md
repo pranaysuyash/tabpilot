@@ -222,4 +222,4 @@ private func transitionToArchived() {
 | `Docs/SUPPORT_RUNBOOK.md` | Updated macOS requirement |
 | `Docs/LANDING_PAGE_DESIGN_BRIEF.md` | Updated macOS requirement |
 | `Docs/LANDING_PAGE_STRATEGIC_CONTEXT.md` | Updated macOS requirement |
-| `Docs/EXECUTIVE_VERDICT.md` | This document |
+| `Docs/SESSION_FIXES_2026-03-26.md` | This document |

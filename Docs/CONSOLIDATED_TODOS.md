@@ -1,10 +1,12 @@
 # Consolidated Status - TabPilot (Updated 2026-03-26 v7)
 
+> Historical note: the first verification block and first file-structure snapshot below reflect the 2026-03-26 state of the repo. Later sections in this same document record the 2026-03-27 cleanup snapshot.
+
 ## ✅ VERIFIED COMPLETE
 
 ### Core Features
 - **Build**: ✅ Pass (12.90s, 100 source files)
-- **Tests**: ✅ 48/48 Pass
+- **Tests**: ✅ Historical snapshot — 48/48 pass on 2026-03-26
 - **Swift 6.2**: ✅ Updated with StrictConcurrency
 
 ### Implemented Features (Code-Verified)
@@ -84,7 +86,7 @@
 - **TabTimeStore**: ✅ Tab timestamp tracking
 - **BackupManager**: ✅ Versioned with rotation
 
-## 📋 Current File Structure
+## 📋 Current File Structure (Historical 2026-03-26 Snapshot)
 
 ```
 Sources/ChromeTabManager/ (100 Swift files)

@@ -149,6 +149,7 @@ These work but are simpler than they could be:
 | Auto-Cleanup | ✅ | ✅ | Standard |
 | Impact Metrics | ✅ | ✅ | Standard |
 | Cross-Browser | ✅ | ✅ | Beta |
+| Archive | ✅ | ✅ | Standard |
 | Smart Search | ✅ | ⚠️ | Basic |
 
 *Requires manual setup
@@ -177,9 +178,9 @@ These work but are simpler than they could be:
 **Landing Page Accuracy: A (95%)**
 
 **Implementation Quality:**
-- **SUPER (10 features):** 50%
-- **Standard (5 features):** 25%
-- **Basic (1 feature):** 5%
+- **SUPER (10 features):** 59%
+- **Standard (6 features):** 35%
+- **Basic (1 feature):** 6%
 - **Missing (0 features):** 0%
 
 **Grade Breakdown:**

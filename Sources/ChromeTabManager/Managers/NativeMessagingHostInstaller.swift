@@ -10,6 +10,7 @@ final class NativeMessagingHostInstaller {
     private static let hostName = "com.tabpilot.timetracker"
     private static let manifestFilename = "com.tabpilot.timetracker.json"
     private static let hostBinaryName = "TabTimeHost"
+    private static let defaultExtensionOrigin = "chrome-extension://EXTENSION_ID_HERE/"
     
     /// Chrome's Native Messaging Hosts directory
     private static var chromeNativeMessagingDir: URL {
@@ -195,12 +196,20 @@ final class NativeMessagingHostInstaller {
     
     /// Generates the manifest dictionary
     private func generateManifest(hostPath: String) -> [String: Any] {
+        let configuredExtensionId = UserDefaults.standard.string(forKey: DefaultsKeys.extensionId)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let allowedOrigin: String
+        if let configuredExtensionId, !configuredExtensionId.isEmpty {
+            allowedOrigin = "chrome-extension://\(configuredExtensionId)/"
+        } else {
+            allowedOrigin = Self.defaultExtensionOrigin
+        }
+
         return [
             "name": Self.hostName,
             "description": "TabPilot Tab Time Tracker Native Messaging Host",
             "path": hostPath,
             "type": "stdio",
-            "allowed_origins": []
+            "allowed_origins": [allowedOrigin]
         ]
     }
 }

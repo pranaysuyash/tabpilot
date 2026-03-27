@@ -152,9 +152,6 @@ struct ReviewPlanItemRow: View {
         }
         .padding(.vertical, 8)
         .opacity(item.isIncluded ? 1.0 : 0.5)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(item.group.displayUrl), keeping \(item.keepTab.title), closing \(item.closeTabs.count) tabs")
-        .accessibilityValue(item.isIncluded ? "included in cleanup" : "excluded from cleanup")
-        .accessibilityHint("Toggle checkbox to include or exclude this group")
+        .accessibilityElement(children: .contain)
     }
 }

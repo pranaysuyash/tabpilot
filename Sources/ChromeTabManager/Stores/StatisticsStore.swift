@@ -154,10 +154,16 @@ final class StatisticsStore: @unchecked Sendable {
 
     // MARK: - CSV Export
 
+    private func csvEscape(_ value: String) -> String {
+        let needsQuoting = value.contains(",") || value.contains("\"") || value.contains("\n") || value.contains("\r")
+        let escaped = value.replacingOccurrences(of: "\"", with: "\"\"")
+        return needsQuoting ? "\"\(escaped)\"" : escaped
+    }
+
     func exportToCSV() -> String {
         let stats = load()
         var csv = "TabPilot Statistics Export\n"
-        csv += "Generated: \(Date().formatted(date: .complete, time: .shortened))\n\n"
+        csv += "Generated: \(csvEscape(Date().formatted(date: .complete, time: .shortened)))\n\n"
 
         // Summary
         csv += "SUMMARY\n"
@@ -172,7 +178,7 @@ final class StatisticsStore: @unchecked Sendable {
             csv += "TOP DOMAINS BY TAB COUNT\n"
             let sorted = stats.mostClosedDomains.sorted { $0.value > $1.value }
             for (domain, count) in sorted.prefix(20) {
-                csv += "\(domain),\(count)\n"
+                csv += "\(csvEscape(domain)),\(count)\n"
             }
             csv += "\n"
         }
@@ -183,7 +189,7 @@ final class StatisticsStore: @unchecked Sendable {
             csv += "Date,Tab Count,Duplicate Count\n"
             let sorted = stats.tabDebtHistory.sorted { $0.date < $1.date }
             for entry in sorted {
-                csv += "\(entry.date.formatted(date: .numeric, time: .shortened)),\(entry.tabCount),\(entry.duplicateCount)\n"
+                csv += "\(csvEscape(entry.date.formatted(date: .numeric, time: .shortened))),\(entry.tabCount),\(entry.duplicateCount)\n"
             }
         }
 

@@ -78,7 +78,7 @@ This document describes how Chrome Tab Manager (TabPilot) verifies user purchase
 - Accessible only to TabPilot (via app identifier)
 
 ### License Key Format
-- Format: `TPIL-{8hex}-{8hex}-{8hex}` (e.g., `TPIL-A1B2C3D4-E5F6G7H8-I9J0K1L2`)
+- Format: `TPIL-{8hex}-{8hex}-{8hex}` (e.g., `TPIL-A1B2C3D4-E5F60718-9ABCDEF0`)
 - Cryptographic signature: HMAC-SHA256(secretKey, email + productId + timestamp)
 - Secret key stored only in build environment (never in app)
 - Key validation: Recompute HMAC and compare

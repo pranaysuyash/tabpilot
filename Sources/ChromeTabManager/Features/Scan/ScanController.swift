@@ -344,7 +344,10 @@ final class ScanController {
     func isDomainProtected(_ url: String) -> Bool {
         guard let host = URL(string: url)?.host?.lowercased() else { return false }
         let protectedDomains = UserDefaults.standard.stringArray(forKey: "protectedDomains") ?? ["mail.google.com", "calendar.google.com"]
-        return protectedDomains.contains { host.contains($0) || $0.contains(host) }
+        return protectedDomains.contains { domain in
+            let normalized = domain.lowercased()
+            return host == normalized || host.hasSuffix(".\(normalized)")
+        }
     }
     
     private var stripQueryParams: Bool {

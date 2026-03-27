@@ -127,8 +127,8 @@
 
 ## TABLE 8: HIDDEN FEATURES (Not Prominently Featured)
 
-| Feature | Implementation | Should be Featured? | Grade |
-|---------|----------------|---------------------|-------|
+| # | Feature | Implementation | Should be Featured? | Grade |
+|---|---------|----------------|---------------------|-------|
 | 1 | Domain analytics | Top domains by count | Yes | **A** |
 | 2 | Browser picker | Arc/Edge/Brave/Vivaldi UI | Yes | **A** |
 | 3 | Persona auto-detection | Automatically chooses view | Yes | **A+** |

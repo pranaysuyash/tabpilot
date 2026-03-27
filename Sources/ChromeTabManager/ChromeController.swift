@@ -53,8 +53,12 @@ actor ChromeController {
             return count of windows
         end tell
         """
-        
-        let result = try await self.runAppleScript(script, timeout: 10)
+
+        let config = RetryConfig(maxAttempts: 3, baseDelay: 0.5, maxDelay: 3.0)
+        let result = try await AsyncRetryHandler.retry(config: config) { [weak self] in
+            guard let self else { throw CancellationError() }
+            return try await self.runAppleScript(script, timeout: 10)
+        }
         return Int(result.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0
     }
     
@@ -62,8 +66,8 @@ actor ChromeController {
     func createNewWindow() async -> Int? {
         let script = """
         tell application "Google Chrome"
-            make new window
-            return count of windows
+            set newWindow to make new window
+            return id of newWindow
         end tell
         """
         
@@ -96,11 +100,15 @@ actor ChromeController {
     
     // MARK: - Stable ID Generation (DATA-010)
     
-    private func stableTabId(windowId: Int, tabIndex: Int, url: String, title: String) -> String {
+    private func stableTabId(chromeTabId: Int?, url: String, title: String) -> String {
+        if let chromeTabId {
+            return "tab-\(chromeTabId)"
+        }
+
         let normalizedUrl = normalizeURL(url, stripQuery: false, filterTracking: true)
         let contentString = "\(normalizedUrl)|\(title)"
         let contentHash = md5Hash(contentString)
-        return "tab-\(contentHash)-w\(windowId)-t\(tabIndex)"
+        return "tab-\(contentHash)"
     }
     
     private func normalizeURL(_ url: String, stripQuery: Bool, filterTracking: Bool) -> String {
@@ -143,7 +151,7 @@ actor ChromeController {
             repeat with w in windows
                 set tabIndex to 1
                 repeat with t in tabs of w
-                    set tabData to (winIndex as string) & "|" & (tabIndex as string) & "|" & (URL of t) & "|" & (title of t) & ";"
+                    set tabData to (winIndex as string) & "|" & (tabIndex as string) & "|" & (id of t as string) & "|" & (URL of t) & "|" & (title of t) & ";"
                     set allData to allData & tabData
                     set tabIndex to tabIndex + 1
                 end repeat
@@ -168,17 +176,18 @@ actor ChromeController {
                 
                 // Split on first 3 pipes only — title may contain pipe characters
                 let parts = trimmed.components(separatedBy: "|")
-                guard parts.count >= 4,
+                                guard parts.count >= 5,
                       let windowId = Int(parts[0].trimmingCharacters(in: .whitespacesAndNewlines)),
                       let tabIndex = Int(parts[1].trimmingCharacters(in: .whitespacesAndNewlines)) else {
                     continue
                 }
-                
-                let url = parts[2].trimmingCharacters(in: .whitespacesAndNewlines)
+
+                                let chromeTabId = Int(parts[2].trimmingCharacters(in: .whitespacesAndNewlines))
+                                let url = parts[3].trimmingCharacters(in: .whitespacesAndNewlines)
                 // Reassemble any remaining parts as the title (handles pipes in title)
-                let title = parts[3...].joined(separator: "|").trimmingCharacters(in: .whitespacesAndNewlines)
-                
-                let tabId = stableTabId(windowId: windowId, tabIndex: tabIndex, url: url, title: title)
+                                let title = parts[4...].joined(separator: "|").trimmingCharacters(in: .whitespacesAndNewlines)
+
+                                let tabId = stableTabId(chromeTabId: chromeTabId, url: url, title: title)
                 let tab = TabInfo(
                     id: tabId,
                     windowId: windowId,

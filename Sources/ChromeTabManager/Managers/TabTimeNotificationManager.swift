@@ -52,6 +52,13 @@ final class TabTimeNotificationManager: NSObject, ObservableObject {
     @Published var weeklySummaryEnabled: Bool {
         didSet {
             UserDefaults.standard.set(weeklySummaryEnabled, forKey: DefaultsKeys.notificationWeeklySummary)
+            if weeklySummaryEnabled {
+                if isEnabled {
+                    scheduleWeeklySummary()
+                }
+            } else {
+                notificationCenter.removePendingNotificationRequests(withIdentifiers: ["weekly-summary-scheduled"])
+            }
         }
     }
     

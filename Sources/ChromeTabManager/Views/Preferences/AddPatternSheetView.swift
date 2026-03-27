@@ -5,7 +5,7 @@ struct AddPatternSheetView: View {
 
     var onSave: (() -> Void)? = nil
 
-    @State private var name = ""
+    @State private var descriptionText = ""
     @State private var patternText = ""
     @State private var action: URLPattern.PatternAction = .keep
 
@@ -16,7 +16,7 @@ struct AddPatternSheetView: View {
 
             Form {
                 Section("Pattern") {
-                    TextField("Name", text: $name)
+                    TextField("Description", text: $descriptionText)
                     TextField("URL pattern (e.g. *.example.com)", text: $patternText)
                 }
 
@@ -55,10 +55,10 @@ struct AddPatternSheetView: View {
 
     private func save() {
         let trimmedPattern = patternText.trimmingCharacters(in: .whitespaces)
-        let trimmedName = name.trimmingCharacters(in: .whitespaces)
+        let trimmedDescription = descriptionText.trimmingCharacters(in: .whitespaces)
         let pattern = URLPattern(
             pattern: trimmedPattern,
-            description: trimmedName.isEmpty ? trimmedPattern : trimmedName,
+            description: trimmedDescription.isEmpty ? trimmedPattern : trimmedDescription,
             action: action
         )
         var patterns = URLPatternStore.shared.loadPatterns()

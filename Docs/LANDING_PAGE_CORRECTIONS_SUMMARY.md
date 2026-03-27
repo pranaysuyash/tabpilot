@@ -11,15 +11,15 @@
 
 | # | Task | Status | Location |
 |---|------|--------|----------|
-| 1 | Fix browser support FAQ | ✅ DONE | Line 491-493, index.html |
-| 2 | Change "advanced" to "smart" search | ✅ DONE | Line 465, index.html |
-| 3 | Clarify Chrome Extension install | ✅ DONE | Line 516, index.html |
+| 1 | Fix browser support FAQ | ✅ DONE | External landing page repo (`chrome-tab-manager-landing/index.html`, not in this workspace) |
+| 2 | Change "advanced" to "smart" search | ✅ DONE | External landing page repo (`chrome-tab-manager-landing/index.html`, not in this workspace) |
+| 3 | Clarify Chrome Extension install | ✅ DONE | External landing page repo (`chrome-tab-manager-landing/index.html`, not in this workspace) |
 
 ### Major Fixes (1/1) ✅
 
 | # | Task | Status | Location |
 |---|------|--------|----------|
-| 4 | Fix "runs in background" wording | ✅ DONE | Line 346, index.html |
+| 4 | Fix "runs in background" wording | ✅ DONE | External landing page repo (`chrome-tab-manager-landing/index.html`, not in this workspace) |
 
 ### Additions (4/4) ✅
 
@@ -125,13 +125,15 @@
 
 ### Before Corrections:
 - **Accuracy:** 85% (B+)
-- **Critical Issues:** 1 (background operation)
+- **Critical inaccuracies:** 3
+- **Positioning gaps:** 1
 - **Minor Issues:** 3
 - **Missing Highlights:** 4
 
 ### After Corrections:
 - **Accuracy:** 95% (A)
-- **Critical Issues:** 0 ✅
+- **Critical inaccuracies:** 0 ✅
+- **Positioning gaps:** 0 ✅
 - **Minor Issues:** 0 ✅
 - **Missing Highlights:** 0 ✅
 

@@ -77,7 +77,7 @@ Three problems, consistently documented:
 | Global hotkeys | `HotkeyManager.swift` | 52-59 | Cmd+Shift+C (scan), Cmd+Shift+D (close) |
 | Persona detection | `PersonaDetection.swift` | 158-183 | Auto-detects Light/Standard/Power/Super |
 | Export formats | `ExportManager.swift` | 7-18 | Markdown, CSV, JSON, HTML |
-| macOS 14+ required | `SUPPORT_RUNBOOK.md` | 72 | "macOS 14+" |
+| macOS 14+ required | `Package.swift` | 6 | `.macOS(.v14)` |
 | No in-app payment | `PAYMENT_ARCHITECTURE_DECISION_2026-03-26.md` | 93-96 | Purchase on landing page only |
 | One-time $19.99 | `MARKETING_AND_PRICING.md` | 5 | "$19.99 lifetime purchase" |
 
@@ -240,7 +240,7 @@ Narrow wedge initially: duplicate cleanup for Chrome users on Mac. The landing p
 
 - Is the Chrome extension required or optional? (Code says optional, but marketing treats it as a differentiator — clarify)
 - Is the "Tab Debt" feature fully shipping in v1.0? (Code exists, but QA report had concerns — verify)
-- What is the exact macOS version requirement? (Support runbook says 13+, verify in Info.plist)
+- What is the exact macOS version requirement? (`Package.swift` currently targets macOS 14+; keep landing copy aligned to that repo source of truth.)
 - What permissions are shown on first launch? (Accessibility is required — should be mentioned)
 
 ---

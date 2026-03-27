@@ -9,7 +9,19 @@
 //   - Host reads from stdin, writes responses to stdout
 
 import Foundation
-import ChromeTabManager
+
+struct TabTimeData: Codable {
+    struct TabDetail: Codable {
+        let url: String
+        let domain: String
+        let totalMs: Double
+    }
+
+    var lastUpdated: Double
+    let date: String
+    var domainTime: [String: Double]
+    var tabDetails: [String: TabDetail]
+}
 
 // ── Configuration ────────────────────────────────────────────────
 
@@ -73,6 +85,11 @@ func save(_ tabTimeData: TabTimeData) {
     try? data.write(to: dataFile, options: .atomic)
 }
 
+func normalizedURLKey(_ urlString: String) -> String {
+    let trimmed = urlString.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+    return trimmed.components(separatedBy: "?").first ?? trimmed
+}
+
 // ── Message Handling ─────────────────────────────────────────────
 
 func handleMessage(_ message: [String: Any]) {
@@ -107,7 +124,7 @@ func handleTabTimeUpdate(_ message: [String: Any]) {
     // Parse tab details
     var newTabDetails: [String: TabTimeData.TabDetail] = [:]
     if let tabs = message["tabs"] as? [String: Any] {
-        for (tabId, tabInfo) in tabs {
+        for (_, tabInfo) in tabs {
             if let info = tabInfo as? [String: Any],
                let url = info["url"] as? String,
                let domain = info["domain"] as? String {
@@ -119,7 +136,9 @@ func handleTabTimeUpdate(_ message: [String: Any]) {
                 } else {
                     totalMs = 0
                 }
-                newTabDetails[tabId] = TabTimeData.TabDetail(url: url, domain: domain, totalMs: totalMs)
+                let urlKey = normalizedURLKey(url)
+                let existingMs = newTabDetails[urlKey]?.totalMs ?? 0
+                newTabDetails[urlKey] = TabTimeData.TabDetail(url: urlKey, domain: domain, totalMs: max(existingMs, totalMs))
             }
         }
     }

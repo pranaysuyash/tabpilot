@@ -105,8 +105,8 @@
 5. [ ] Implement A++ confirmation dialog UX
 
 ### Low Priority (Future)
-5. [ ] Full Swift 6 concurrency audit
-6. [ ] Actor isolation refactor for strict concurrency
+6. [ ] Full Swift 6 concurrency audit
+7. [ ] Actor isolation refactor for strict concurrency
 
 ---
 

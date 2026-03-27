@@ -7,9 +7,11 @@ struct TabInfo: Identifiable, Hashable, Sendable, Codable {
     var title: String
     var url: String
     let openedAt: Date
-    /// Cached domain computed once at creation time to avoid repeated URL parsing
-    let domain: String
     var profileName: String
+
+    var domain: String {
+        Self.computeDomain(from: url)
+    }
     
     init(id: String, windowId: Int, tabIndex: Int, title: String, url: String, openedAt: Date, profileName: String = "Default") {
         self.id = id
@@ -18,7 +20,6 @@ struct TabInfo: Identifiable, Hashable, Sendable, Codable {
         self.title = title
         self.url = url
         self.openedAt = openedAt
-        self.domain = Self.computeDomain(from: url)
         self.profileName = profileName
     }
     
@@ -31,11 +32,6 @@ struct TabInfo: Identifiable, Hashable, Sendable, Codable {
         title = try container.decode(String.self, forKey: .title)
         url = try container.decode(String.self, forKey: .url)
         openedAt = try container.decode(Date.self, forKey: .openedAt)
-        if let cachedDomain = try? container.decode(String.self, forKey: .domain) {
-            domain = cachedDomain
-        } else {
-            domain = Self.computeDomain(from: url)
-        }
         profileName = try container.decodeIfPresent(String.self, forKey: .profileName) ?? "Default"
     }
     
@@ -67,7 +63,7 @@ struct TabInfo: Identifiable, Hashable, Sendable, Codable {
     }
     
     private enum CodingKeys: String, CodingKey {
-        case id, windowId, tabIndex, title, url, openedAt, domain, profileName
+        case id, windowId, tabIndex, title, url, openedAt, profileName
     }
     
     func encode(to encoder: Encoder) throws {
@@ -78,7 +74,6 @@ struct TabInfo: Identifiable, Hashable, Sendable, Codable {
         try container.encode(title, forKey: .title)
         try container.encode(url, forKey: .url)
         try container.encode(openedAt, forKey: .openedAt)
-        try container.encode(domain, forKey: .domain)
         try container.encode(profileName, forKey: .profileName)
     }
     
