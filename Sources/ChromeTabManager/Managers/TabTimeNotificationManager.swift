@@ -15,6 +15,7 @@ final class TabTimeNotificationManager: NSObject, ObservableObject {
                 requestAuthorization()
             } else {
                 stopMonitoring()
+                notificationCenter.removePendingNotificationRequests(withIdentifiers: ["weekly-summary-scheduled"])
             }
         }
     }

@@ -43,6 +43,9 @@ struct ContentView: View {
                 showingArchiveSheet = false
             }
         }
+        .sheet(isPresented: $viewModel.showArchiveHistory) {
+            ArchiveHistoryView(viewModel: viewModel)
+        }
         .sheet(isPresented: $viewModel.isImportResultPresented) {
             ImportResultView(
                 importedTabs: viewModel.importPreviewTabs,

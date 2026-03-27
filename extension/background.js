@@ -39,14 +39,15 @@ function now() {
 
 // ── Core tracking ────────────────────────────────────────────────
 
-function startTracking(tabId, url) {
+function startTracking(tabId, url, options = {}) {
+  const { startImmediately = false } = options;
   if (!url || url.startsWith("chrome://") || url.startsWith("chrome-extension://")) return;
 
   const domain = getDomain(url);
   tabState.set(tabId, {
     url,
     domain,
-    startTime: now(),
+    startTime: startImmediately && !trackingPaused ? now() : null,
     accumulatedMs: tabState.get(tabId)?.accumulatedMs || 0,
   });
 }
@@ -149,7 +150,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 // Tab created
 chrome.tabs.onCreated.addListener((tab) => {
   if (tab.url) {
-    startTracking(tab.id, tab.url);
+    startTracking(tab.id, tab.url, { startImmediately: tab.active === true });
   }
 });
 
@@ -184,7 +185,7 @@ function initialize() {
   chrome.tabs.query({}, (tabs) => {
     for (const tab of tabs) {
       if (tab.url) {
-        startTracking(tab.id, tab.url);
+        startTracking(tab.id, tab.url, { startImmediately: false });
       }
     }
 

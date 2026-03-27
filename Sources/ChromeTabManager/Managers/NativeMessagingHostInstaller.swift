@@ -45,7 +45,11 @@ final class NativeMessagingHostInstaller {
         guard let data = try? Data(contentsOf: Self.manifestDestination),
               let manifest = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let name = manifest["name"] as? String,
-              name == Self.hostName else {
+              name == Self.hostName,
+              let hostPath = manifest["path"] as? String,
+              fileManager.fileExists(atPath: hostPath),
+              let allowedOrigins = manifest["allowed_origins"] as? [String],
+              isValidAllowedOrigins(allowedOrigins) else {
             logger.warning("Native messaging host manifest exists but is invalid")
             return false
         }
@@ -234,6 +238,14 @@ final class NativeMessagingHostInstaller {
         return existingAllowedOrigins
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty && !$0.contains("EXTENSION_ID_HERE") }
+    }
+
+    private func isValidAllowedOrigins(_ origins: [String]) -> Bool {
+        guard !origins.isEmpty else { return false }
+        return origins.allSatisfy { origin in
+            let trimmed = origin.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmed.hasPrefix("chrome-extension://") && !trimmed.contains("EXTENSION_ID_HERE")
+        }
     }
 }
 
