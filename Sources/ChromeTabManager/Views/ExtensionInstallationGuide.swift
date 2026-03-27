@@ -162,18 +162,18 @@ struct ExtensionInstallationGuide: View {
                 
                 StepRow(
                     number: 3,
-                    title: "Copy the Extension ID",
-                    description: "Open the extension details page in Chrome and copy the ID into the field above",
+                    title: "Load Unpacked Extension",
+                    description: "Click \"Load unpacked\" and select the extension folder",
                     action: nil
                 )
 
                 StepRow(
                     number: 4,
-                    title: "Load Unpacked Extension",
-                    description: "Click \"Load unpacked\" and select the extension folder",
+                    title: "Copy the Extension ID",
+                    description: "Open the extension details page in Chrome and copy the ID into the field above",
                     action: nil
                 )
-                
+
                 StepRow(
                     number: 5,
                     title: "Grant Permissions",
