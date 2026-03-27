@@ -117,9 +117,14 @@ final class NativeMessagingHostInstaller {
             logger.error("Failed to create Chrome directory: \(error.localizedDescription)")
             return .failure(.permissionDenied(underlying: error))
         }
+
+        guard let allowedOrigins = resolveAllowedOrigins(), !allowedOrigins.isEmpty else {
+            logger.error("Cannot install native messaging host: extension ID/origin is not configured")
+            return .failure(.extensionOriginNotConfigured)
+        }
         
         // Generate and write the manifest
-        let manifest = generateManifest(hostPath: hostBinaryPath)
+        let manifest = generateManifest(hostPath: hostBinaryPath, allowedOrigins: allowedOrigins)
         
         do {
             let manifestData = try JSONSerialization.data(withJSONObject: manifest, options: [.prettyPrinted, .sortedKeys])
@@ -193,18 +198,21 @@ final class NativeMessagingHostInstaller {
         return nil
     }
     
-    /// Generates the manifest dictionary
-    private func generateManifest(hostPath: String) -> [String: Any] {
+    private func resolveAllowedOrigins() -> [String]? {
         let configuredExtensionId = UserDefaults.standard.string(forKey: DefaultsKeys.extensionId)?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let allowedOrigins: [String]
         if let configuredExtensionId, !configuredExtensionId.isEmpty {
-            allowedOrigins = ["chrome-extension://\(configuredExtensionId)/"]
-        } else if let existingAllowedOrigins = readAllowedOriginsFromExistingManifest(), !existingAllowedOrigins.isEmpty {
-            allowedOrigins = existingAllowedOrigins
-        } else {
-            allowedOrigins = []
-            logger.warning("No extension ID configured for native messaging host; writing manifest without allowed_origins.")
+            return ["chrome-extension://\(configuredExtensionId)/"]
         }
+
+        if let existingAllowedOrigins = readAllowedOriginsFromExistingManifest(), !existingAllowedOrigins.isEmpty {
+            return existingAllowedOrigins
+        }
+
+        return nil
+    }
+
+    /// Generates the manifest dictionary
+    private func generateManifest(hostPath: String, allowedOrigins: [String]) -> [String: Any] {
 
         return [
             "name": Self.hostName,
@@ -263,6 +271,7 @@ extension NativeMessagingHostInstaller {
     /// Detailed errors that can occur during installation
     enum InstallationError: Error, LocalizedError {
         case hostBinaryNotFound
+        case extensionOriginNotConfigured
         case permissionDenied(underlying: Error)
         case writeFailed(underlying: Error)
         case verificationFailed
@@ -271,6 +280,8 @@ extension NativeMessagingHostInstaller {
             switch self {
             case .hostBinaryNotFound:
                 return "TabTimeHost binary not found in app bundle"
+            case .extensionOriginNotConfigured:
+                return "Chrome extension ID is not configured for native messaging host installation"
             case .permissionDenied(let underlying):
                 return "Permission denied: \(underlying.localizedDescription)"
             case .writeFailed(let underlying):
@@ -284,6 +295,8 @@ extension NativeMessagingHostInstaller {
             switch self {
             case .hostBinaryNotFound:
                 return "Please ensure the app is properly installed."
+            case .extensionOriginNotConfigured:
+                return "Load the extension in Chrome, copy its extension ID, and save it in TabPilot before retrying installation."
             case .permissionDenied:
                 return "Check that you have write permissions to ~/Library/Application Support/Google/Chrome/"
             case .writeFailed:
