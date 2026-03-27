@@ -45,7 +45,7 @@ This document tracks the UX improvements implemented from a UX audit of the Chro
 | Action | Shortcut |
 |--------|----------|
 | Scan Tabs | ⌘S |
-| Smart Select | ⌘S |
+| Smart Select | ⌘⇧S |
 | Close Selected | ⌘W |
 | Preferences | ⌘, |
 | Select All Except Oldest | ⌘⇧O |

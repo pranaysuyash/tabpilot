@@ -65,6 +65,12 @@ final class ExtensionInstallationManager: ObservableObject {
         let chromeURL = URL(string: "chrome://extensions")!
         NSWorkspace.shared.open(chromeURL)
     }
+
+    /// Ensures the native messaging host manifest is installed before extension setup.
+    @discardableResult
+    func ensureNativeMessagingHostInstalled() async -> NativeMessagingHostInstaller.InstallationResult {
+        await NativeMessagingHostInstaller.shared.install()
+    }
     
     /// Shows the installation guide immediately
     func showGuide() {

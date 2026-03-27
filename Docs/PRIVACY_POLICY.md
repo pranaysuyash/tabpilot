@@ -137,7 +137,7 @@ We may update our privacy policy from time to time. We will notify you of any ch
 If you have any questions about this privacy policy, please contact us:
 
 By email: privacy@tabpilot.app
-By mail: TBD before launch — publish the team mailing address in the public policy before distribution begins. Until then, contact privacy@tabpilot.app.
+By mail: Please email privacy@tabpilot.app to request our current mailing address.
 By visiting our website: https://tabpilot.app/privacy
 
 ## California Residents' Privacy Rights

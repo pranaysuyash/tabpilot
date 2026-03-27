@@ -108,11 +108,11 @@ Comprehensive help sheet showing all 18 keyboard shortcuts organized by category
 ### Complete Trackpad-Free Workflow
 1. **Scan**: ⌘ + S
 2. **Refresh**: ⌘ + ⇧ + R
-2. **Navigate**: Tab, then ↑/↓
-3. **Select**: Space
-4. **Review**: ⌘ + Shift + P
-5. **Close**: ⌘ + Delete
-6. **Undo**: Available in toast notification
+3. **Navigate**: Tab, then ↑/↓
+4. **Select**: Space
+5. **Review**: ⌘ + Shift + P
+6. **Close**: ⌘ + Delete
+7. **Undo**: Available in toast notification
 
 ### Efficiency Tips
 - Use ⌘ + F to quickly filter without mouse

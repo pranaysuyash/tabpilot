@@ -27,6 +27,7 @@ final class AppViewModel: ObservableObject {
     @Published var showReviewPlan = false
     @Published var showArchiveHistory = false
     @Published var showExtensionInstallationGuide = false
+    @Published var showKeyboardShortcutsHelp = false
     @Published var showConfirmation = false
     @Published var confirmationTitle = ""
     @Published var confirmationMessage = ""
@@ -214,6 +215,55 @@ final class AppViewModel: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.smartSelect()
+            }
+            .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: .refreshTabs)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                Task { await self?.incrementalScan() }
+            }
+            .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: .selectAllTabs)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.selectAll()
+            }
+            .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: .deselectAllTabs)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.deselectAll()
+            }
+            .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: .undoLastClose)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                Task { await self?.undoLastClose() }
+            }
+            .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: .redoAction)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.displayToast(message: "Redo is not available yet")
+            }
+            .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: .clearFilter)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.searchQuery = ""
+            }
+            .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: .showKeyboardShortcutsHelp)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.showKeyboardShortcutsHelp = true
             }
             .store(in: &cancellables)
         

@@ -10,7 +10,6 @@ final class NativeMessagingHostInstaller {
     private static let hostName = "com.tabpilot.timetracker"
     private static let manifestFilename = "com.tabpilot.timetracker.json"
     private static let hostBinaryName = "TabTimeHost"
-    private static let defaultExtensionOrigin = "chrome-extension://EXTENSION_ID_HERE/"
     
     /// Chrome's Native Messaging Hosts directory
     private static var chromeNativeMessagingDir: URL {
@@ -197,11 +196,14 @@ final class NativeMessagingHostInstaller {
     /// Generates the manifest dictionary
     private func generateManifest(hostPath: String) -> [String: Any] {
         let configuredExtensionId = UserDefaults.standard.string(forKey: DefaultsKeys.extensionId)?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let allowedOrigin: String
+        let allowedOrigins: [String]
         if let configuredExtensionId, !configuredExtensionId.isEmpty {
-            allowedOrigin = "chrome-extension://\(configuredExtensionId)/"
+            allowedOrigins = ["chrome-extension://\(configuredExtensionId)/"]
+        } else if let existingAllowedOrigins = readAllowedOriginsFromExistingManifest(), !existingAllowedOrigins.isEmpty {
+            allowedOrigins = existingAllowedOrigins
         } else {
-            allowedOrigin = Self.defaultExtensionOrigin
+            allowedOrigins = []
+            logger.warning("No extension ID configured for native messaging host; writing manifest without allowed_origins.")
         }
 
         return [
@@ -209,8 +211,21 @@ final class NativeMessagingHostInstaller {
             "description": "TabPilot Tab Time Tracker Native Messaging Host",
             "path": hostPath,
             "type": "stdio",
-            "allowed_origins": [allowedOrigin]
+            "allowed_origins": allowedOrigins
         ]
+    }
+
+    private func readAllowedOriginsFromExistingManifest() -> [String]? {
+        guard FileManager.default.fileExists(atPath: Self.manifestDestination.path),
+              let data = try? Data(contentsOf: Self.manifestDestination),
+              let manifest = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let existingAllowedOrigins = manifest["allowed_origins"] as? [String] else {
+            return nil
+        }
+
+        return existingAllowedOrigins
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty && !$0.contains("EXTENSION_ID_HERE") }
     }
 }
 

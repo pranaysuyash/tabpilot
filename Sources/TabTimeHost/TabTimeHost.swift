@@ -9,19 +9,7 @@
 //   - Host reads from stdin, writes responses to stdout
 
 import Foundation
-
-struct TabTimeData: Codable {
-    struct TabDetail: Codable {
-        let url: String
-        let domain: String
-        let totalMs: Double
-    }
-
-    var lastUpdated: Double
-    let date: String
-    var domainTime: [String: Double]
-    var tabDetails: [String: TabDetail]
-}
+import TabTimeShared
 
 // ── Configuration ────────────────────────────────────────────────
 

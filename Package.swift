@@ -6,12 +6,15 @@ let package = Package(
     platforms: [.macOS(.v14)],
     dependencies: [],
     targets: [
+        .target(name: "TabTimeShared"),
         .executableTarget(
             name: "ChromeTabManager",
+            dependencies: ["TabTimeShared"],
             swiftSettings: [.enableExperimentalFeature("StrictConcurrency")]
         ),
         .executableTarget(
             name: "TabTimeHost",
+            dependencies: ["TabTimeShared"],
             swiftSettings: [.enableExperimentalFeature("StrictConcurrency")]
         ),
         .testTarget(

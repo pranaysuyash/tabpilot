@@ -5,13 +5,14 @@ struct TabInfo: Identifiable, Hashable, Sendable, Codable {
     let windowId: Int
     let tabIndex: Int
     var title: String
-    var url: String
+    var url: String {
+        didSet {
+            domain = Self.computeDomain(from: url)
+        }
+    }
+    private(set) var domain: String
     let openedAt: Date
     var profileName: String
-
-    var domain: String {
-        Self.computeDomain(from: url)
-    }
     
     init(id: String, windowId: Int, tabIndex: Int, title: String, url: String, openedAt: Date, profileName: String = "Default") {
         self.id = id
@@ -19,6 +20,7 @@ struct TabInfo: Identifiable, Hashable, Sendable, Codable {
         self.tabIndex = tabIndex
         self.title = title
         self.url = url
+        self.domain = Self.computeDomain(from: url)
         self.openedAt = openedAt
         self.profileName = profileName
     }
@@ -31,6 +33,7 @@ struct TabInfo: Identifiable, Hashable, Sendable, Codable {
         tabIndex = try container.decode(Int.self, forKey: .tabIndex)
         title = try container.decode(String.self, forKey: .title)
         url = try container.decode(String.self, forKey: .url)
+        domain = try container.decodeIfPresent(String.self, forKey: .domain) ?? Self.computeDomain(from: url)
         openedAt = try container.decode(Date.self, forKey: .openedAt)
         profileName = try container.decodeIfPresent(String.self, forKey: .profileName) ?? "Default"
     }
@@ -63,7 +66,7 @@ struct TabInfo: Identifiable, Hashable, Sendable, Codable {
     }
     
     private enum CodingKeys: String, CodingKey {
-        case id, windowId, tabIndex, title, url, openedAt, profileName
+        case id, windowId, tabIndex, title, url, domain, openedAt, profileName
     }
     
     func encode(to encoder: Encoder) throws {
@@ -73,6 +76,7 @@ struct TabInfo: Identifiable, Hashable, Sendable, Codable {
         try container.encode(tabIndex, forKey: .tabIndex)
         try container.encode(title, forKey: .title)
         try container.encode(url, forKey: .url)
+        try container.encode(domain, forKey: .domain)
         try container.encode(openedAt, forKey: .openedAt)
         try container.encode(profileName, forKey: .profileName)
     }

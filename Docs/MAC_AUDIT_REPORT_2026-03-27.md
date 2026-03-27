@@ -49,9 +49,9 @@ TabPilot is an exceptionally well-crafted macOS application that feels like a fi
 
 ## 4. Key Findings by Area
 
-### 🟢 MAC-001 (P1): Complete Absence of State Restoration
+### 🟢 MAC-001 (P0): Complete Absence of State Restoration
 - **Area**: Resilience / UX
-- **Severity**: **P1** (Frustrating for power users)
+- **Severity**: **P0** (Frustrating for power users)
 - **Evidence**: Search for `@SceneStorage` or window state persistence returned 0 hits.
 - **Inferred Consequence**: Users must re-position the window and re-select their view every time the app launches.
 - **Fix Direction**: Implement `@SceneStorage` for view state and `preferredWindowFrameDescriptor` for position.

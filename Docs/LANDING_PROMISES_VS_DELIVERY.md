@@ -122,12 +122,6 @@ These work but are simpler than they could be:
 - **Evidence:** Simple text filter on title/URL
 - **Gap:** No regex, date ranges, or complex filters
 
-### 17. **Archive**
-- **Promise:** "Archive important sessions"
-- **Delivery:** ✅ Works
-- **Evidence:** ClosedTabHistoryStore, ArchiveHistoryView
-- **Note:** Now clarified in landing page
-
 ---
 
 ## 📋 SUMMARY TABLE

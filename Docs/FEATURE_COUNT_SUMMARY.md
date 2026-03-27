@@ -89,7 +89,7 @@
 **Q: How many features are actually delivered vs promised?**
 
 **A:**
-- **60+ features** checked
+- **60 features** checked
 - **59 delivered** (98%)
 - **28 are Super** (47%)
 - **26 are Excellent** (43%)

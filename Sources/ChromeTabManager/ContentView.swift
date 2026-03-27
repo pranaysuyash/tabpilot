@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 struct ContentView: View {
     @StateObject private var viewModel: TabManagerViewModel
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
+    @State private var showOnboardingSheet = false
     @State private var exportDocument: TabExportDocument?
     @State private var exportDefaultFilename = "ChromeTabs.md"
     @State private var showingFileExporter = false
@@ -54,11 +55,21 @@ struct ContentView: View {
                 }
             )
         }
-        .sheet(isPresented: Binding(
-            get: { !hasCompletedOnboarding },
-            set: { hasCompletedOnboarding = !$0 }
-        )) {
-            OnboardingView(hasCompletedOnboarding: $hasCompletedOnboarding)
+        .sheet(isPresented: $showOnboardingSheet) {
+            OnboardingView(
+                hasCompletedOnboarding: Binding(
+                    get: { hasCompletedOnboarding },
+                    set: { completed in
+                        hasCompletedOnboarding = completed
+                        if completed {
+                            showOnboardingSheet = false
+                        }
+                    }
+                )
+            )
+        }
+        .sheet(isPresented: $viewModel.showKeyboardShortcutsHelp) {
+            KeyboardShortcutsHelpView()
         }
         .toolbar {
             AppToolbarContent(viewModel: viewModel)
@@ -174,6 +185,9 @@ struct ContentView: View {
                 }
             }
         )
+        .onAppear {
+            showOnboardingSheet = !hasCompletedOnboarding
+        }
     }
 
     private func prepareExportSelected(format: TabManagerViewModel.ExportFormat) {

@@ -6,6 +6,7 @@ struct ExtensionInstallationGuide: View {
     @StateObject private var manager = ExtensionInstallationManager.shared
     @State private var showDontShowAgain = false
     @State private var isChromeInstalled = true
+    @State private var installationStatusMessage: String?
     
     var body: some View {
         VStack(spacing: 0) {
@@ -63,11 +64,26 @@ struct ExtensionInstallationGuide: View {
                     .keyboardShortcut(.escape)
                     
                     Button("Open Chrome Extensions") {
-                        manager.openChromeExtensions()
+                        Task {
+                            let installResult = await manager.ensureNativeMessagingHostInstalled()
+                            if !installResult.isSuccess {
+                                installationStatusMessage = installResult.description
+                            } else {
+                                installationStatusMessage = nil
+                            }
+                            manager.openChromeExtensions()
+                        }
                     }
                     .keyboardShortcut(.defaultAction)
                     .buttonStyle(.borderedProminent)
                     .disabled(!isChromeInstalled)
+                }
+
+                if let installationStatusMessage {
+                    Text(installationStatusMessage)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
             .padding(16)
